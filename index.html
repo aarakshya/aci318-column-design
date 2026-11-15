@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RC Column Design (ACI 318)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4ef; --panel:#ffffff; --ink:#1d2329; --muted:#5d6670; --line:#d9d6cc;
+  --accent:#1f4e79; --accent-soft:#e6eef6;
+  --pass:#1e7a46; --pass-bg:#e3f3e9; --fail:#b3261e; --fail-bg:#fbe5e3; --info:#7a5a00; --info-bg:#fbf1d6;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+header{background:var(--ink);color:#fff;padding:22px 28px}
+header h1{margin:0;font-size:21px;font-weight:600}
+header p{margin:4px 0 0;color:#b9c2cb;font-size:13.5px}
+.wrap{display:grid;grid-template-columns:370px 1fr;gap:22px;padding:22px 28px;max-width:1500px;margin:0 auto}
+@media (max-width:980px){.wrap{grid-template-columns:1fr;padding:16px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+aside.panel{padding:16px 18px;align-self:start;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:980px){aside.panel{position:static;max-height:none}}
+h2{font-size:15px;margin:0 0 10px;font-weight:600;letter-spacing:.2px}
+h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:16px 0 6px;font-weight:600}
+.field{display:grid;grid-template-columns:1fr 104px 46px;align-items:center;gap:6px;margin:5px 0}
+.field label{font-size:13.5px}
+.field input,.field select{width:100%;padding:5px 6px;border:1px solid var(--line);border-radius:4px;font:13.5px "IBM Plex Mono",monospace;background:#fcfbf8}
+.field select,.field input[type=text]{font-family:"IBM Plex Sans",sans-serif}
+.field .u{font-size:12px;color:var(--muted)}
+.field.wide{grid-template-columns:1fr 160px}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button{font:500 13px "IBM Plex Sans",sans-serif;padding:7px 12px;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:#fff;color:var(--accent)}
+button.calc-btn{width:100%;padding:11px;font-size:15px;font-weight:600;margin-top:16px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+.sub{font-size:12.5px;font-weight:600;color:var(--accent);margin:12px 0 2px}
+.hint{font-size:12px;line-height:1.45;margin:6px 0 4px;padding:6px 9px;border-radius:4px;background:#f4f6f8;border-left:3px solid var(--muted)}
+.hint.ok{border-left-color:var(--pass);background:#f1f8f3}
+.hint.bad{border-left-color:var(--fail);background:#fdf2f1}
+.hint b{font-weight:600}
+.hints-stale .hint{opacity:.45}
+#toast{font-size:12.5px;min-height:18px;margin-top:6px;color:var(--accent)}
+main{display:flex;flex-direction:column;gap:22px;min-width:0}
+#results{display:flex;flex-direction:column;gap:22px}
+.empty{padding:60px 30px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+.stale{background:var(--info-bg);border:1px solid #ecd58f;color:var(--info);border-radius:6px;padding:10px 16px;font-size:14px}
+.verdict{display:flex;align-items:center;gap:18px;padding:18px 22px;border-radius:6px;border:1px solid}
+.verdict.pass{background:var(--pass-bg);border-color:#a9d6b9}
+.verdict.fail{background:var(--fail-bg);border-color:#efb3ad}
+.verdict .big{font-size:26px;font-weight:600;letter-spacing:.5px}
+.verdict.pass .big{color:var(--pass)} .verdict.fail .big{color:var(--fail)}
+.verdict .txt{font-size:14px}
+section.panel{padding:18px 22px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;background:#f0eee7;font-size:12.5px}
+td.num{font-family:"IBM Plex Mono",monospace}
+tr.grp td{background:#f7f6f1;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+tr.total td{font-weight:600;background:#f7f6f1;border-top:2px solid var(--ink)}
+.tscroll{overflow-x:auto}
+.badge{display:inline-block;padding:2px 9px;border-radius:3px;font:600 12px "IBM Plex Sans",sans-serif;letter-spacing:.4px}
+.badge.pass{background:var(--pass-bg);color:var(--pass)}
+.badge.fail{background:var(--fail-bg);color:var(--fail)}
+.badge.info{background:var(--info-bg);color:var(--info)}
+.part{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin:22px 0 4px;font-weight:600;border-bottom:2px solid var(--accent-soft);padding-bottom:4px}
+.part:first-child{margin-top:0}
+.step{border-top:1px solid var(--line);padding:14px 0}
+.part + .step{border-top:none}
+.step-h{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.step-h b{font-size:14.5px}
+.ref{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:3px}
+.calc{font-family:"IBM Plex Mono",monospace;font-size:13px;background:#faf9f5;border:1px solid #ebe8de;border-radius:4px;padding:9px 12px;margin-top:8px;overflow-x:auto;line-height:1.75}
+.calc .r{font-weight:600;color:var(--accent)}
+.step p{margin:6px 0 0;font-size:13.5px;color:#333a41}
+.figs{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.figs svg,.detail svg{max-width:100%;height:auto;background:#fff}
+.detail{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.detail figure{margin:0;text-align:center}
+.detail figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
+h4{font-size:13.5px;margin:18px 0 8px}
+.refs li{font-size:13px;margin:3px 0}
+.footnote{font-size:12.5px;color:var(--muted);text-align:center;margin:4px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>RC Rectangular Tied Column Design to ACI 318</h1>
+  <p>Slenderness, axial load with biaxial bending, shear, ties and lap splice checks. SI units.</p>
+</header>
+
+<div class="wrap">
+<aside class="panel">
+<form id="form" autocomplete="off">
+  <h2>Input parameters</h2>
+
+  <h3>Job</h3>
+  <div class="field wide"><label>Project</label><input id="proj" type="text" placeholder="optional"></div>
+  <div class="field wide"><label>Column mark</label><input id="mark" type="text" placeholder="e.g. C1"></div>
+
+  <h3>Code and member</h3>
+  <div class="field wide"><label>ACI 318 edition</label>
+    <select id="ed"><option value="25">ACI 318-25</option><option value="19">ACI 318-19</option></select></div>
+  <div class="field wide"><label>Frame type</label>
+    <select id="frame"><option value="nonsway">Nonsway (braced)</option><option value="sway">Sway (unbraced)</option></select></div>
+  <div class="field"><label>Unsupported length, ℓ<sub>u</sub></label><input id="lu" type="number" step="any"><span class="u">m</span></div>
+  <div class="field"><label>Effective length factor, k<sub>x</sub></label><input id="kx" type="number" step="any"><span class="u">–</span></div>
+  <div class="field"><label>Effective length factor, k<sub>y</sub></label><input id="ky" type="number" step="any"><span class="u">–</span></div>
+  <div class="field"><label>Sustained load ratio, β<sub>dns</sub></label><input id="bdns" type="number" step="any" min="0"><span class="u">–</span></div>
+
+  <h3>Factored actions</h3>
+  <div class="field"><label>Axial compression, P<sub>u</sub></label><input id="Pu" type="number" step="any"><span class="u">kN</span></div>
+  <div class="sub">Bending about x (x is parallel to b, bending over depth h)</div>
+  <div class="field"><label>Larger end moment, M<sub>2x</sub></label><input id="M2x" type="number" step="any" min="0"><span class="u">kN·m</span></div>
+  <div class="field"><label>Smaller end moment, M<sub>1x</sub></label><input id="M1x" type="number" step="any" min="0"><span class="u">kN·m</span></div>
+  <div class="field wide"><label>Curvature</label>
+    <select id="curvx"><option value="single">Single curvature</option><option value="double">Double curvature</option></select></div>
+  <div class="sub">Bending about y (y is parallel to h, bending over depth b)</div>
+  <div class="field"><label>Larger end moment, M<sub>2y</sub></label><input id="M2y" type="number" step="any" min="0"><span class="u">kN·m</span></div>
+  <div class="field"><label>Smaller end moment, M<sub>1y</sub></label><input id="M1y" type="number" step="any" min="0"><span class="u">kN·m</span></div>
+  <div class="field wide"><label>Curvature</label>
+    <select id="curvy"><option value="single">Single curvature</option><option value="double">Double curvature</option></select></div>
+  <div class="sub">Shear</div>
+  <div class="field"><label>Shear along x, V<sub>ux</sub></label><input id="Vux" type="number" step="any" min="0"><span class="u">kN</span></div>
+  <div class="field"><label>Shear along y, V<sub>uy</sub></label><input id="Vuy" type="number" step="any" min="0"><span class="u">kN</span></div>
+
+  <h3>Materials</h3>
+  <div class="field"><label>Concrete strength, f'<sub>c</sub></label><input id="fc" type="number" step="any"><span class="u">MPa</span></div>
+  <div class="field"><label>Longitudinal bar yield, f<sub>y</sub></label><input id="fy" type="number" step="any"><span class="u">MPa</span></div>
+  <div class="field"><label>Tie yield, f<sub>yt</sub></label><input id="fyt" type="number" step="any"><span class="u">MPa</span></div>
+  <div class="field"><label>Steel modulus, E<sub>s</sub></label><input id="Es" type="number" step="any"><span class="u">MPa</span></div>
+  <div class="field"><label>Concrete strain, ε<sub>cu</sub></label><input id="ecu" type="number" step="any"><span class="u">–</span></div>
+
+  <h3>Section</h3>
+  <div class="field"><label>Width, b (along x)</label><input id="b" type="number" step="any"><span class="u">mm</span></div>
+  <div class="field"><label>Depth, h (along y)</label><input id="h" type="number" step="any"><span class="u">mm</span></div>
+
+  <h3>Longitudinal bars</h3>
+  <div class="field"><label>Bars on each b face, n<sub>x</sub></label><input id="nx" type="number" step="1" min="2"><span class="u">nos</span></div>
+  <div class="field"><label>Bars on each h face, n<sub>y</sub></label><input id="ny" type="number" step="1" min="2"><span class="u">nos</span></div>
+  <div class="field"><label>Bar diameter, d<sub>b</sub></label><input id="db" type="number" step="any"><span class="u">mm</span></div>
+  <p class="note" style="margin-top:2px">Both counts include the corner bars. Total = 2n<sub>x</sub> + 2(n<sub>y</sub> − 2).</p>
+  <div class="hint" id="hint_long" hidden></div>
+
+  <h3>Ties</h3>
+  <div class="field"><label>Tie diameter</label><input id="dtie" type="number" step="any"><span class="u">mm</span></div>
+  <div class="field"><label>Spacing, s</label><input id="s" type="number" step="any"><span class="u">mm</span></div>
+  <div class="field"><label>Legs parallel to h (resist V<sub>uy</sub>)</label><input id="legsY" type="number" step="1" min="2"><span class="u">nos</span></div>
+  <div class="field"><label>Legs parallel to b (resist V<sub>ux</sub>)</label><input id="legsX" type="number" step="1" min="2"><span class="u">nos</span></div>
+  <div class="hint" id="hint_tie" hidden></div>
+
+  <h3>Durability and concrete</h3>
+  <div class="field wide"><label>Exposure</label>
+    <select id="exposure"><option value="int">Not exposed to weather or ground</option><option value="ext">Exposed to weather or ground</option><option value="earth">Cast against earth</option></select></div>
+  <div class="field"><label>Clear cover to ties</label><input id="cov" type="number" step="any"><span class="u">mm</span></div>
+  <div class="field"><label>Max aggregate size</label><input id="agg" type="number" step="any"><span class="u">mm</span></div>
+
+  <button type="submit" class="calc-btn" id="calcBtn">Calculate</button>
+</form>
+
+  <h3>Export</h3>
+  <div class="btns" style="margin-top:4px">
+    <button id="pdf" disabled>Export PDF</button>
+    <button id="xls" disabled>Export Excel</button>
+    <button class="ghost" id="copy" disabled>Copy report text</button>
+  </div>
+  <div id="toast"></div>
+  <p class="note">Assumptions: rectangular tied column, one bar size placed evenly on the four faces, axial compression, normal-weight concrete, uncoated bars, no transverse load between the ends, nonseismic design. In a sway frame, enter end moments that already include the sway magnification.</p>
+</aside>
+
+<main>
+  <section class="panel empty" id="empty"><b>No results yet</b>Enter the input parameters and click Calculate.</section>
+  <div id="results" hidden>
+    <div class="stale" id="stale" hidden>Inputs have changed since the last calculation. Click Calculate to update the results.</div>
+    <div id="verdict" class="verdict"></div>
+
+    <section class="panel">
+      <h2>Check summary</h2>
+      <div class="tscroll"><table id="checks"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Input summary</h2>
+      <table id="inputs"></table>
+    </section>
+
+    <section class="panel">
+      <h2>Interaction diagrams</h2>
+      <div class="figs" id="figs"></div>
+      <p class="note" style="text-align:center">Grey: nominal strength. Blue: design strength, cut off at φP<sub>n,max</sub>. Red: factored actions.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Design procedure</h2>
+      <div id="steps"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Outcome and summary</h2>
+      <div id="summary"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Reinforcement detail</h2>
+      <div class="detail" id="detail"></div>
+      <h4>Bar schedule</h4>
+      <div class="tscroll"><table id="schedule"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>References</h2>
+      <ul class="refs" id="refs"></ul>
+    </section>
+  </div>
+  <p class="footnote">Developed by Aarakshya Kandel</p>
+</main>
+</div>
+
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
+<script src="lib/xlsx.mini.min.js"></script>
+<script src="lib/fonts.js"></script>
+<script>
+const AUTHOR = "Aarakshya Kandel";
+const ED_NAME = {"25":"ACI 318-25","19":"ACI 318-19"};
+const EXP_NAME = {int:"Not exposed to weather or ground", ext:"Exposed to weather or ground", earth:"Cast against earth"};
+const FRAME_NAME = {nonsway:"Nonsway (braced)", sway:"Sway (unbraced)"};
+const CURV_NAME = {single:"single curvature", double:"double curvature"};
+const REFS = [
+  "ACI CODE-318-25, Building Code for Structural Concrete, American Concrete Institute, 2025.",
+  "ACI 318-19, Building Code Requirements for Structural Concrete, American Concrete Institute, 2019 (SI edition ACI 318M-19). Clause numbers in this sheet follow 318-19.",
+  "Materials: 19.2.1.1 minimum f'c = 17 MPa; 19.2.2.1 E<sub>c</sub> = 4700√f'c; Table 20.2.2.4(a) maximum f<sub>y</sub> 690 MPa for axial force and flexure, f<sub>yt</sub> 420 MPa for shear (nonseismic); 22.4.2.1 f<sub>y</sub> ≤ 550 MPa in P<sub>o</sub>; 22.5.3.1 and 25.4.1.4 √f'c ≤ 8.3 MPa.",
+  "Cover: Table 20.5.1.3.1, cast-in-place nonprestressed concrete.",
+  "Longitudinal bars: 10.6.1.1 A<sub>st</sub> between 0.01A<sub>g</sub> and 0.08A<sub>g</sub>; 10.7.3.1 at least 4 bars inside rectangular ties; 25.2.3 clear spacing.",
+  "Slenderness: 6.2.5.1 limits on kℓ<sub>u</sub>/r; 6.2.5.2 r = 0.3h; 6.2.5.3 second-order moment ≤ 1.4 × first-order moment; 6.6.4.4.2 P<sub>c</sub>; 6.6.4.4.4 (EI)<sub>eff</sub>; 6.6.4.5.2 δ; 6.6.4.5.3 C<sub>m</sub>; 6.6.4.5.4 M<sub>2,min</sub>; 6.6.4.6.4 second-order effects along the length in sway frames.",
+  "Axial load and bending: 22.2 strain compatibility with ε<sub>cu</sub> = 0.003 and the 0.85f'c stress block over a = β<sub>1</sub>c; Table 22.2.2.4.3 β<sub>1</sub>; 22.4.2.1 P<sub>n,max</sub> = 0.80P<sub>o</sub> for tied columns; 22.4.2.2 P<sub>o</sub>; Table 21.2.2 φ; 10.5.1.1 design strength.",
+  "318-25, 21.2.2.3: where 0.1f'cA<sub>g</sub> ≤ P<sub>n</sub> ≤ P<sub>n,bal</sub>, φ may not exceed the value interpolated linearly between 0.90 at P<sub>n</sub> = 0.1f'cA<sub>g</sub> and 0.65 at P<sub>n,bal</sub>. This is the one edition difference in the strength calculation here.",
+  "Shear: 21.2.1 φ = 0.75; Table 22.5.5.1 V<sub>c</sub> with axial compression, N<sub>u</sub>/6A<sub>g</sub> ≤ 0.05f'c; 22.5.5.1.1 V<sub>c</sub> ≤ 0.42λ√f'c b<sub>w</sub>d; 22.5.1.2 section limit; 22.5.8.5.3 V<sub>s</sub>; 22.5.1.10 and 22.5.1.11 shear on two axes; 10.6.2.1 and 10.6.2.2 minimum shear reinforcement; 10.7.6.5.2 spacing of shear reinforcement.",
+  "Ties: 25.7.2.1 spacing; 25.7.2.2 diameter; 25.7.2.3 lateral support of longitudinal bars; 10.7.6.2 position of the first and last tie.",
+  "Splices: 10.7.5.2 lap splices in columns; 25.5.5.1 compression lap; 25.5.2.1 tension lap; 25.4.2.3 development length in tension.",
+  "318-25 is taken to keep the 318-19 provisions for slenderness, column shear, ties and straight-bar lap splices. It revised hooked and headed bar development, added a breakout check for bar groups ending in an anchorage region (25.4.1.5), and added a lower bound on V<sub>c</sub> that is not used here."
+];
+const SCOPE_NOTE = "Not covered: circular and spiral columns, axial tension, sway magnification of the frame (δ<sub>s</sub>), joint shear, column to footing dowels, offset bars, and seismic detailing of Chapter 18.";
+
+const f = (x,p=2) => (x===null||x===undefined||!isFinite(x)) ? "–" : Number(x).toLocaleString("en-US",{minimumFractionDigits:p,maximumFractionDigits:p});
+const f5 = x => isFinite(x) ? x.toFixed(5) : "–";
+const strip = s => String(s).replace(/<sub>(.*?)<\/sub>/g,"$1").replace(/<[^>]+>/g,"").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&");
+
+// ---------- section analysis by strain compatibility ----------
+function clipArea(b,h,ux,uy,t){
+  const poly=[[-b/2,-h/2],[b/2,-h/2],[b/2,h/2],[-b/2,h/2]], out=[];
+  for(let i=0;i<4;i++){
+    const p=poly[i], q=poly[(i+1)%4], dp=p[0]*ux+p[1]*uy-t, dq=q[0]*ux+q[1]*uy-t;
+    if(dp>=0) out.push(p);
+    if((dp>=0)!==(dq>=0)){ const k=dp/(dp-dq); out.push([p[0]+k*(q[0]-p[0]), p[1]+k*(q[1]-p[1])]); }
+  }
+  let A=0,cx=0,cy=0;
+  for(let i=0;i<out.length;i++){ const p=out[i], q=out[(i+1)%out.length], cr=p[0]*q[1]-q[0]*p[1]; A+=cr; cx+=(p[0]+q[0])*cr; cy+=(p[1]+q[1])*cr; }
+  A/=2; if(Math.abs(A)<1e-9) return {A:0,cx:0,cy:0};
+  return {A:Math.abs(A), cx:cx/(6*A), cy:cy/(6*A)};
+}
+function rawState(S,ctx,c){
+  const a=Math.min(S.beta1*c, 2*ctx.dmax), cl=clipArea(S.b,S.h,ctx.ux,ctx.uy,ctx.dmax-a);
+  let P=0.85*S.fc*cl.A, Mx=P*cl.cy, My=P*cl.cx, fsT=0;
+  for(const q of S.bars){
+    const di=ctx.dmax-(q.x*ctx.ux+q.y*ctx.uy), es=S.ecu*(c-di)/c;
+    const fs=Math.max(-S.fy, Math.min(S.fy, S.Es*es));
+    const F=q.A*(fs-(di<a ? 0.85*S.fc : 0));
+    P+=F; Mx+=F*q.y; My+=F*q.x; if(-fs>fsT) fsT=-fs;
+  }
+  return {P,Mx,My,a,c,et:S.ecu*(ctx.dtm-c)/c,fsT};
+}
+function phiOf(S,ctx,r){
+  let phi = r.et>=S.etc ? 0.9 : (r.et<=S.ety ? 0.65 : 0.65+0.25*(r.et-S.ety)/(S.etc-S.ety));
+  r.phiTable = phi; r.capped = false;
+  if(S.ed==="25"){
+    const P1=0.1*S.fc*S.Ag;
+    if(ctx.Pbal>P1 && r.P>=P1 && r.P<=ctx.Pbal){
+      const lim=0.9-0.25*(r.P-P1)/(ctx.Pbal-P1);
+      if(lim<phi){ phi=lim; r.capped=true; }
+    }
+  }
+  return phi;
+}
+function mkCtx(S,alpha){
+  const ux=Math.cos(alpha), uy=Math.sin(alpha);
+  const ctx={alpha,ux,uy,dmax:S.b/2*Math.abs(ux)+S.h/2*Math.abs(uy),dtm:0,Pbal:-Infinity};
+  for(const q of S.bars){ const di=ctx.dmax-(q.x*ux+q.y*uy); if(di>ctx.dtm) ctx.dtm=di; }
+  ctx.cb=ctx.dtm*S.ecu/(S.ecu+S.ety);
+  const rb=rawState(S,ctx,ctx.cb); ctx.Pbal=rb.P; ctx.Mbal=Math.hypot(rb.Mx,rb.My);
+  return ctx;
+}
+function st(S,ctx,c){ const r=rawState(S,ctx,c); r.phi=phiOf(S,ctx,r); return r; }
+const TG=(()=>{ const a=[]; for(let i=0;i<=420;i++) a.push(0.02*Math.pow(1500,i/420)); return a; })();
+function capAt(S,ctx,PuN){
+  if(PuN>S.phiPnmax+1e-6) return null;
+  const g=c=>{ const r=st(S,ctx,c); return {r,c,val:r.phi*r.P-PuN}; };
+  let prev=null,best=null;
+  for(const t of TG){
+    const cur=g(ctx.dmax*t);
+    if(prev && (prev.val<0)!==(cur.val<0)){
+      let lo=prev,hi=cur;
+      for(let i=0;i<40;i++){ const m=g((lo.c+hi.c)/2); if((m.val<0)===(lo.val<0)) lo=m; else hi=m; }
+      const r=hi.r, mag=r.phi*Math.hypot(r.Mx,r.My);
+      if(!best || mag<best.mag) best=Object.assign({},r,{mag});
+    }
+    prev=cur;
+  }
+  return best;
+}
+function curve(S,alpha){
+  const ctx=mkCtx(S,alpha), nom=[], des=[];
+  for(let i=TG.length-1;i>=0;i--){
+    const r=st(S,ctx,ctx.dmax*TG[i]), M=Math.hypot(r.Mx,r.My)/1e6;
+    if(r.P<0){ if(nom.length){ const p=nom[nom.length-1], k=p[1]/(p[1]-r.P/1e3); nom.push([p[0]+k*(M-p[0]),0]); const q=des[des.length-1], k2=q[1]/(q[1]-r.phi*r.P/1e3); des.push([q[0]+k2*(r.phi*M-q[0]),0]); } break; }
+    nom.push([M,r.P/1e3]); des.push([r.phi*M,r.phi*r.P/1e3]);
+  }
+  const cap=S.phiPnmax/1e3, out=[]; let started=false;
+  for(let i=0;i<des.length;i++){
+    if(des[i][1]<=cap){
+      if(!started){ started=true; if(i>0){ const p=des[i-1], q=des[i], k=(p[1]-cap)/(p[1]-q[1]); out.push([0,cap]); out.push([p[0]+k*(q[0]-p[0]),cap]); } else out.push([0,cap]); }
+      out.push(des[i]);
+    }
+  }
+  return {ctx,nom,des:out};
+}
+function biax(S,PuN,Mux,Muy){
+  const at=al=>{ const ctx=mkCtx(S,al), r=capAt(S,ctx,PuN); return r ? {r,ctx,g:Math.atan2(Math.max(r.Mx,0),Math.max(r.My,0))} : null; };
+  if(Muy<=0) return at(Math.PI/2);
+  if(Mux<=0) return at(0);
+  const gd=Math.atan2(Mux,Muy); let lo=0, hi=Math.PI/2, res=null;
+  for(let i=0;i<36;i++){ const m=(lo+hi)/2, q=at(m); if(!q) return null; res=q; if(q.g<gd) lo=m; else hi=m; }
+  return res;
+}
+
+// ---------- design ----------
+function design(v){
+  const {Pu,fc,fy,fyt,Es,ecu,b,h,nx,ny,db,dtie,legsX,legsY,s,cov,agg,lu,kx,ky,bdns,frame,exposure,Vux,Vuy} = v;
+  const ed=v.ed, edName=ED_NAME[ed], lam=1.0;
+  const steps=[], checks=[]; let part="";
+  const P = name => { part=name; };
+  const Sx = (title, ref, lines, note) => steps.push({part,title,ref,lines:lines.filter(Boolean),note});
+  const C = (group,name,ref,demand,capacity,ok,info) => checks.push({group,name,ref,demand,capacity,ok,info});
+  const sqfc=Math.min(Math.sqrt(fc),8.3);
+  const Ag=b*h, Ab=Math.PI*db*db/4, nBars=2*nx+2*(ny-2), Ast=nBars*Ab, rhog=Ast/Ag;
+  const dc=cov+dtie+db/2;
+
+  // ===== A =====
+  P("A. Materials and cover");
+  const fytV=Math.min(fyt,420), Ec=4700*Math.sqrt(fc);
+  const beta1 = fc<=28 ? 0.85 : (fc>=55 ? 0.65 : 0.85-0.05*(fc-28)/7);
+  const ety=fy/Es, etc=ety+0.003;
+  Sx("Material limits and properties","19.2.1.1, 19.2.2.1, Table 20.2.2.4(a)",
+    [`f'c = ${f(fc,1)} MPa (minimum 17 MPa); E<sub>c</sub> = 4700√f'c = <span class="r">${f(Ec,0)} MPa</span>`,
+     `f<sub>y</sub> = ${f(fy,0)} MPa (maximum 690 MPa for longitudinal bars); ε<sub>ty</sub> = f<sub>y</sub>/E<sub>s</sub> = <span class="r">${f5(ety)}</span>`,
+     `f<sub>yt</sub> = ${f(fyt,0)} MPa (maximum 550 MPa for ties as lateral support); value used for shear = min(f<sub>yt</sub>, 420) = <span class="r">${f(fytV,0)} MPa</span>`,
+     fc<=28 ? `β<sub>1</sub> = <span class="r">0.85</span> for f'c ≤ 28 MPa` : fc>=55 ? `β<sub>1</sub> = <span class="r">0.65</span> for f'c ≥ 55 MPa` : `β<sub>1</sub> = 0.85 − 0.05(f'c − 28)/7 = <span class="r">${f(beta1,3)}</span>`,
+     `√f'c used for shear and development = min(√f'c, 8.3) = <span class="r">${f(sqfc,2)} MPa</span>`]);
+  C("Materials and cover","Concrete strength f'c ≥ 17 MPa","19.2.1.1","≥ 17 MPa",`${f(fc,1)} MPa`, fc>=17);
+  C("Materials and cover","Longitudinal bar f<sub>y</sub> ≤ 690 MPa","Table 20.2.2.4(a)","≤ 690 MPa",`${f(fy,0)} MPa`, fy<=690);
+  C("Materials and cover","Tie f<sub>yt</sub> ≤ 550 MPa","Table 20.2.2.4(a)","≤ 550 MPa",`${f(fyt,0)} MPa`, fyt<=550);
+  const covReq = d0 => exposure==="earth" ? 75 : (exposure==="ext" ? (d0>=19 ? 50 : 40) : 40);
+  const covTieReq=covReq(dtie), covBarReq=covReq(db), covBar=cov+dtie;
+  Sx("Concrete cover","Table 20.5.1.3.1",
+    [`Exposure: ${EXP_NAME[exposure]}`,
+     `Ties (Ø${f(dtie,0)}): required ${covTieReq} mm, provided ${f(cov,0)} mm`,
+     `Longitudinal bars (Ø${f(db,0)}): required ${covBarReq} mm, provided cover + d<sub>tie</sub> = ${f(cov,0)} + ${f(dtie,0)} = <span class="r">${f(covBar,0)} mm</span>`]);
+  C("Materials and cover","Cover to ties","Table 20.5.1.3.1",`≥ ${covTieReq} mm`,`${f(cov,0)} mm`, cov>=covTieReq);
+  C("Materials and cover","Cover to longitudinal bars","Table 20.5.1.3.1",`≥ ${covBarReq} mm`,`${f(covBar,0)} mm`, covBar>=covBarReq);
+
+  // ===== B =====
+  P("B. Longitudinal reinforcement");
+  const spX=(b-2*dc)/(nx-1), spY=(h-2*dc)/(ny-1), clrX=spX-db, clrY=spY-db;
+  const clrMinReq=Math.max(40,1.5*db,4/3*agg), clrMin=Math.min(clrX,clrY);
+  Sx("Bar arrangement and steel ratio","10.6.1.1, 10.7.3.1",
+    [`A<sub>g</sub> = b h = ${f(b,0)} × ${f(h,0)} = <span class="r">${f(Ag,0)} mm²</span>`,
+     `Bars: ${nx} on each face of width b and ${ny} on each face of depth h, corners shared: 2×${nx} + 2×(${ny} − 2) = <span class="r">${nBars} bars</span>`,
+     `A<sub>st</sub> = ${nBars} × π × ${f(db,0)}²/4 = <span class="r">${f(Ast,0)} mm²</span>`,
+     `ρ<sub>g</sub> = A<sub>st</sub>/A<sub>g</sub> = ${f(Ast,0)}/${f(Ag,0)} = <span class="r">${f(rhog*100,2)}%</span> (allowed 1% to 8%)`,
+     `Distance from face to bar centre = cover + d<sub>tie</sub> + d<sub>b</sub>/2 = ${f(cov,0)} + ${f(dtie,0)} + ${f(db/2,1)} = ${f(dc,1)} mm`],
+    rhog>0.04 ? "With ρ<sub>g</sub> above 4% the bars will not fit at a lap splice, where the steel area doubles. Use mechanical splices or stagger the laps." : "");
+  Sx("Clear spacing of longitudinal bars","25.2.3",
+    [`Along b: centre spacing = (b − 2×${f(dc,1)})/(${nx} − 1) = ${f(spX,1)} mm, clear = <span class="r">${f(clrX,1)} mm</span>`,
+     `Along h: centre spacing = (h − 2×${f(dc,1)})/(${ny} − 1) = ${f(spY,1)} mm, clear = <span class="r">${f(clrY,1)} mm</span>`,
+     `Minimum clear spacing = max(40, 1.5d<sub>b</sub>, 4/3 d<sub>agg</sub>) = max(40, ${f(1.5*db,1)}, ${f(4/3*agg,1)}) = <span class="r">${f(clrMinReq,1)} mm</span>`]);
+  C("Longitudinal reinforcement","Minimum steel, A<sub>st</sub> ≥ 0.01A<sub>g</sub>","10.6.1.1",`≥ ${f(0.01*Ag,0)} mm²`,`${f(Ast,0)} mm² (${f(rhog*100,2)}%)`, rhog>=0.01);
+  C("Longitudinal reinforcement","Maximum steel, A<sub>st</sub> ≤ 0.08A<sub>g</sub>","10.6.1.1",`≤ ${f(0.08*Ag,0)} mm²`,`${f(Ast,0)} mm² (${f(rhog*100,2)}%)`, rhog<=0.08);
+  C("Longitudinal reinforcement","Number of bars","10.7.3.1","≥ 4",`${nBars}`, nBars>=4);
+  C("Longitudinal reinforcement","Clear spacing of bars","25.2.3",`≥ ${f(clrMinReq,1)} mm`,`${f(clrMin,1)} mm`, clrMin>=clrMinReq);
+  if(rhog>0.04) C("Longitudinal reinforcement","Steel above 4%: lap splices will be congested","R10.6.1.1",`ρ<sub>g</sub> = ${f(rhog*100,2)}%`,"Use mechanical or staggered splices", false, true);
+
+  // ===== C =====
+  P("C. Slenderness and design moments");
+  function slender(ax, depth, width, k, M2in, M1in, curv){
+    const r=0.3*depth, sl=k*lu*1000/r;
+    const ratio = M2in>0 ? (curv==="single" ? -1 : 1)*M1in/M2in : -1;
+    const limit = frame==="sway" ? 22 : Math.min(34+12*ratio,40);
+    const isSl = sl>limit, o={ax,r,sl,ratio,limit,isSl,M2in,M1in,delta:1,Mc:M2in};
+    const dn = ax==="x" ? "h" : "b";
+    const lines=[
+      `Bending about the ${ax} axis, section depth ${dn} = ${f(depth,0)} mm: r = 0.3${dn} = <span class="r">${f(r,1)} mm</span>`,
+      `kℓ<sub>u</sub>/r = ${f(k,2)} × ${f(lu*1000,0)}/${f(r,1)} = <span class="r">${f(sl,1)}</span>`,
+      frame==="sway" ? `Sway frame: slenderness may be neglected where kℓ<sub>u</sub>/r ≤ 22`
+        : `M<sub>1</sub>/M<sub>2</sub> = ${M2in>0 ? `${curv==="single"?"−":"+"}${f(M1in,1)}/${f(M2in,1)} = ${f(ratio,3)} (${CURV_NAME[curv]})` : "−1.0 (no end moments, taken as single curvature)"}; limit = min(34 + 12M<sub>1</sub>/M<sub>2</sub>, 40) = <span class="r">${f(limit,1)}</span>`,
+      isSl ? `${f(sl,1)} &gt; ${f(limit,1)}  →  <span class="r">slender, moments are magnified</span>` : `${f(sl,1)} ≤ ${f(limit,1)}  →  <span class="r">slenderness may be neglected</span>, M<sub>u${ax}</sub> = M<sub>2</sub> = ${f(M2in,1)} kN·m`];
+    Sx(`Slenderness about the ${ax} axis`,"6.2.5.1, 6.2.5.2",lines);
+    if(isSl){
+      const Ig=width*Math.pow(depth,3)/12, EI=0.4*Ec*Ig/(1+bdns), kk = frame==="sway" ? Math.min(k,1) : k;
+      const Pc=Math.PI*Math.PI*EI/Math.pow(kk*lu*1000,2)/1e3;
+      const M2min=Pu*(15+0.03*depth)/1000, minGov=M2min>=M2in, M2=Math.max(M2in,M2min);
+      const Cm = minGov ? 1.0 : 0.6-0.4*ratio, den=1-Pu/(0.75*Pc);
+      const delta = den>0 ? Math.max(Cm/den,1) : Infinity;
+      Object.assign(o,{Pc,M2min,M2,Cm,delta,Mc:delta*M2,stable:den>0,minGov});
+      Sx(`Moment magnification about the ${ax} axis`,"6.6.4.4, 6.6.4.5",
+        [`I<sub>g</sub> = ${f(width,0)} × ${f(depth,0)}³/12 = ${(Ig/1e9).toFixed(3)} × 10⁹ mm⁴`,
+         `(EI)<sub>eff</sub> = 0.4E<sub>c</sub>I<sub>g</sub>/(1 + β<sub>dns</sub>) = 0.4 × ${f(Ec,0)} × ${(Ig/1e9).toFixed(3)}×10⁹/(1 + ${f(bdns,2)}) = <span class="r">${(EI/1e12).toFixed(2)} × 10¹² N·mm²</span>`,
+         `P<sub>c</sub> = π²(EI)<sub>eff</sub>/(kℓ<sub>u</sub>)² = π² × ${(EI/1e12).toFixed(2)}×10¹²/(${f(kk,2)} × ${f(lu*1000,0)})² = <span class="r">${f(Pc,0)} kN</span>`,
+         `M<sub>2,min</sub> = P<sub>u</sub>(15 + 0.03${dn}) = ${f(Pu,0)} × (15 + 0.03×${f(depth,0)})/1000 = <span class="r">${f(M2min,1)} kN·m</span>; M<sub>2</sub> = max(${f(M2in,1)}, ${f(M2min,1)}) = ${f(M2,1)} kN·m`,
+         minGov ? `M<sub>2,min</sub> governs, so C<sub>m</sub> = <span class="r">1.0</span>` : `C<sub>m</sub> = 0.6 − 0.4M<sub>1</sub>/M<sub>2</sub> = 0.6 − 0.4 × (${f(ratio,3)}) = <span class="r">${f(Cm,3)}</span>`,
+         den>0 ? `δ = C<sub>m</sub>/(1 − P<sub>u</sub>/0.75P<sub>c</sub>) = ${f(Cm,3)}/(1 − ${f(Pu,0)}/(0.75 × ${f(Pc,0)})) = ${f(Cm/den,3)}, not less than 1.0  →  δ = <span class="r">${f(delta,3)}</span>`
+               : `P<sub>u</sub> = ${f(Pu,0)} kN is not less than 0.75P<sub>c</sub> = ${f(0.75*Pc,0)} kN. The column is unstable; increase the section.`,
+         den>0 ? `M<sub>c</sub> = δM<sub>2</sub> = ${f(delta,3)} × ${f(M2,1)} = <span class="r">${f(delta*M2,1)} kN·m</span>` : ``],
+        frame==="sway" ? "Sway frame: the end moments entered must already include the sway magnification δ<sub>s</sub>M<sub>s</sub> from 6.6.4.6 or a second-order analysis. This step adds the effect along the column length (6.6.4.6.4) with k not more than 1.0." : "No transverse load between the column ends is assumed.");
+      C("Slenderness",`Stability about ${ax}: P<sub>u</sub> &lt; 0.75P<sub>c</sub>`,"6.6.4.5.2",`&lt; ${f(0.75*Pc,0)} kN`,`${f(Pu,0)} kN`, den>0);
+      C("Slenderness",`Second-order moment about ${ax} ≤ 1.4 × first-order`,"6.2.5.3","δ ≤ 1.40",`δ = ${f(delta,3)}`, delta<=1.4);
+    } else {
+      C("Slenderness",`Slenderness about ${ax} may be neglected`,"6.2.5.1",`kℓ<sub>u</sub>/r ≤ ${f(limit,1)}`,`${f(sl,1)}`, true);
+    }
+    return o;
+  }
+  const sxx=slender("x",h,b,kx,v.M2x,v.M1x,v.curvx), syy=slender("y",b,h,ky,v.M2y,v.M1y,v.curvy);
+  const Mux=sxx.Mc, Muy=syy.Mc, Mur=Math.hypot(Mux,Muy);
+
+  // ===== D =====
+  P("D. Axial load and bending");
+  const bars=[];
+  for(let i=0;i<nx;i++){ const x=-b/2+dc+i*spX; bars.push({x,y:h/2-dc,A:Ab}); bars.push({x,y:-h/2+dc,A:Ab}); }
+  for(let j=1;j<ny-1;j++){ const y=-h/2+dc+j*spY; bars.push({x:b/2-dc,y,A:Ab}); bars.push({x:-b/2+dc,y,A:Ab}); }
+  const fyPo=Math.min(fy,550), Po=0.85*fc*(Ag-Ast)+fyPo*Ast, phiPnmax=0.65*0.8*Po;
+  const S={b,h,bars,fc,fy,Es,ecu,beta1,ety,etc,Ag,ed,phiPnmax};
+  Sx("Maximum axial strength","22.4.2.1, 22.4.2.2, Table 21.2.2",
+    [`P<sub>o</sub> = 0.85f'c(A<sub>g</sub> − A<sub>st</sub>) + f<sub>y</sub>A<sub>st</sub> = 0.85×${f(fc,1)}×(${f(Ag,0)} − ${f(Ast,0)}) + ${f(fyPo,0)}×${f(Ast,0)} = <span class="r">${f(Po/1e3,0)} kN</span>`,
+     `Tied column: P<sub>n,max</sub> = 0.80P<sub>o</sub> = ${f(0.8*Po/1e3,0)} kN`,
+     `φP<sub>n,max</sub> = 0.65 × ${f(0.8*Po/1e3,0)} = <span class="r">${f(phiPnmax/1e3,0)} kN</span>; P<sub>u</sub> = ${f(Pu,0)} kN`],
+    fy>550 ? "f<sub>y</sub> is limited to 550 MPa in P<sub>o</sub>." : "");
+  const cvx=curve(S,Math.PI/2), cvy=curve(S,0);
+  const bx=st(S,cvx.ctx,cvx.ctx.cb), by=st(S,cvy.ctx,cvy.ctx.cb);
+  Sx("Balanced strain condition","22.2, 21.2.2",
+    [`Extreme tension bars at ε<sub>ty</sub> = ${f5(ety)} with concrete at ε<sub>cu</sub> = ${f(ecu,4)}: c<sub>b</sub> = d<sub>t</sub> ε<sub>cu</sub>/(ε<sub>cu</sub> + ε<sub>ty</sub>)`,
+     `About x: d<sub>t</sub> = ${f(cvx.ctx.dtm,1)} mm, c<sub>b</sub> = ${f(cvx.ctx.cb,1)} mm, P<sub>n,bal</sub> = <span class="r">${f(bx.P/1e3,0)} kN</span>, M<sub>n,bal</sub> = <span class="r">${f(bx.Mx/1e6,1)} kN·m</span>`,
+     `About y: d<sub>t</sub> = ${f(cvy.ctx.dtm,1)} mm, c<sub>b</sub> = ${f(cvy.ctx.cb,1)} mm, P<sub>n,bal</sub> = <span class="r">${f(by.P/1e3,0)} kN</span>, M<sub>n,bal</sub> = <span class="r">${f(by.My/1e6,1)} kN·m</span>`,
+     `Tension-controlled limit ε<sub>ty</sub> + 0.003 = ${f5(etc)}; φ = 0.65 at or below ε<sub>ty</sub>, 0.90 at or above ${f5(etc)}, linear between`,
+     ed==="25" ? `318-25, 21.2.2.3: for 0.1f'cA<sub>g</sub> = ${f(0.1*fc*Ag/1e3,0)} kN ≤ P<sub>n</sub> ≤ P<sub>n,bal</sub>, φ ≤ 0.90 − 0.25(P<sub>n</sub> − 0.1f'cA<sub>g</sub>)/(P<sub>n,bal</sub> − 0.1f'cA<sub>g</sub>)` : ``]);
+  const PuN=Pu*1e3, axialOK=PuN<=phiPnmax;
+  const ux0=capAt(S,cvx.ctx,PuN), uy0=capAt(S,cvy.ctx,PuN);
+  const phiMnx0=ux0 ? ux0.phi*ux0.Mx/1e6 : 0, phiMny0=uy0 ? uy0.phi*uy0.My/1e6 : 0;
+  const zoneOf = r => r.et>=etc ? "tension-controlled" : (r.et<=ety ? "compression-controlled" : "transition");
+  Sx("Uniaxial design strength at P<sub>u</sub>","22.2, 22.4, 10.5.1.1",
+    axialOK ? [
+     `The neutral axis depth c is found by iteration so that φP<sub>n</sub> = P<sub>u</sub> = ${f(Pu,0)} kN, with bar stresses from strain compatibility and the 0.85f'c stress block over a = β<sub>1</sub>c.`,
+     `About x: c = ${f(ux0.c,1)} mm, ε<sub>t</sub> = ${f5(ux0.et)} (${zoneOf(ux0)}), φ = ${f(ux0.phi,3)}, M<sub>nx</sub> = ${f(ux0.Mx/1e6,1)} kN·m, φM<sub>nx</sub> = <span class="r">${f(phiMnx0,1)} kN·m</span>`,
+     `About y: c = ${f(uy0.c,1)} mm, ε<sub>t</sub> = ${f5(uy0.et)} (${zoneOf(uy0)}), φ = ${f(uy0.phi,3)}, M<sub>ny</sub> = ${f(uy0.My/1e6,1)} kN·m, φM<sub>ny</sub> = <span class="r">${f(phiMny0,1)} kN·m</span>`,
+     (ux0.capped||uy0.capped) ? `φ is governed by the 318-25 limit of 21.2.2.3 about ${[ux0.capped?"x":"",uy0.capped?"y":""].filter(Boolean).join(" and ")}.` : ``]
+    : [`P<sub>u</sub> = ${f(Pu,0)} kN exceeds φP<sub>n,max</sub> = ${f(phiPnmax/1e3,0)} kN. The section has no moment strength at this axial load.`]);
+  let bi=null, util, phiMnr=0, biState=null;
+  if(axialOK && Mur>0){
+    bi=biax(S,PuN,Mux*1e6,Muy*1e6);
+    if(bi){ biState=bi.r; phiMnr=bi.r.phi*Math.hypot(bi.r.Mx,bi.r.My)/1e6; }
+    util = phiMnr>0 ? Mur/phiMnr : Infinity;
+  } else if(axialOK){ util=PuN/phiPnmax; biState=null; }
+  else util=Infinity;
+  const isBiax = Mux>0 && Muy>0;
+  if(axialOK && Mur>0 && bi){
+    const naAng = 90 - bi.ctx.alpha*180/Math.PI;
+    Sx(isBiax ? "Biaxial bending check at P<sub>u</sub>" : "Bending check at P<sub>u</sub>","22.2, 22.4, 10.5.1.1",
+      [`Design moments: M<sub>ux</sub> = ${f(Mux,1)} kN·m, M<sub>uy</sub> = ${f(Muy,1)} kN·m; resultant M<sub>u</sub> = √(M<sub>ux</sub>² + M<sub>uy</sub>²) = <span class="r">${f(Mur,1)} kN·m</span>`,
+       isBiax ? `The neutral axis is inclined. Its angle and depth are iterated until φP<sub>n</sub> = P<sub>u</sub> and the resisting moment has the same direction as M<sub>u</sub>.` : ``,
+       isBiax ? `Neutral axis at ${f(naAng,1)}° to the x axis, depth c = ${f(biState.c,1)} mm from the most compressed corner` : `c = ${f(biState.c,1)} mm`,
+       `ε<sub>t</sub> = ${f5(biState.et)} (${zoneOf(biState)}), φ = <span class="r">${f(biState.phi,3)}</span>${biState.capped ? " (318-25 limit of 21.2.2.3 governs)" : ""}`,
+       `φM<sub>nx</sub> = ${f(biState.phi*biState.Mx/1e6,1)} kN·m, φM<sub>ny</sub> = ${f(biState.phi*biState.My/1e6,1)} kN·m; resultant φM<sub>n</sub> = <span class="r">${f(phiMnr,1)} kN·m</span>`,
+       `Utilisation M<sub>u</sub>/φM<sub>n</sub> = ${f(Mur,1)}/${f(phiMnr,1)} = <span class="r">${f(util,3)}</span>`],
+      isBiax ? "This is the exact strain compatibility solution for the rectangular section, so no approximate method such as the reciprocal load equation is needed." : "");
+  }
+  C("Axial load and bending","Axial strength, P<sub>u</sub> ≤ φP<sub>n,max</sub>","22.4.2.1",`P<sub>u</sub> = ${f(Pu,0)} kN`,`φP<sub>n,max</sub> = ${f(phiPnmax/1e3,0)} kN`, axialOK);
+  if(axialOK && Mux>0) C("Axial load and bending","Uniaxial strength about x at P<sub>u</sub>","10.5.1.1, 22.4",`M<sub>ux</sub> = ${f(Mux,1)} kN·m`,`φM<sub>nx</sub> = ${f(phiMnx0,1)} kN·m`, phiMnx0>=Mux);
+  if(axialOK && Muy>0) C("Axial load and bending","Uniaxial strength about y at P<sub>u</sub>","10.5.1.1, 22.4",`M<sub>uy</sub> = ${f(Muy,1)} kN·m`,`φM<sub>ny</sub> = ${f(phiMny0,1)} kN·m`, phiMny0>=Muy);
+  if(Mur>0) C("Axial load and bending", isBiax ? "Biaxial strength at P<sub>u</sub> (strain compatibility)" : "Combined axial load and bending","10.5.1.1, 22.4",`M<sub>u</sub> = ${f(Mur,1)} kN·m`,`φM<sub>n</sub> = ${f(phiMnr,1)} kN·m (ratio ${f(util,2)})`, util<=1);
+
+  // contour for the plot
+  const contour=[];
+  if(axialOK){ for(let i=0;i<=24;i++){ const ctx=mkCtx(S,i*Math.PI/48), r=capAt(S,ctx,PuN); if(r) contour.push([Math.max(r.phi*r.My/1e6,0),Math.max(r.phi*r.Mx/1e6,0)]); } }
+
+  // ===== E =====
+  P("E. Shear");
+  const phiV=0.75, Atie=Math.PI*dtie*dtie/4, axT=Math.min(PuN/(6*Ag),0.05*fc);
+  const AvminCoef=Math.max(0.062*sqfc,0.35);
+  function shear(dir, Vu, bw, depth, nface, legs){
+    const d=depth-dc, Av=legs*Atie, Avmin=AvminCoef*bw*s/fytV, avOK=Av>=Avmin;
+    const rhoW=nface*Ab/(bw*d), VcMax=0.42*lam*sqfc*bw*d/1e3, lines=[];
+    const bn = dir==="y" ? "b" : "h", hn = dir==="y" ? "h" : "b";
+    lines.push(`Shear along ${dir}: b<sub>w</sub> = ${bn} = ${f(bw,0)} mm, d = ${hn} − ${f(dc,1)} = <span class="r">${f(d,1)} mm</span>; A<sub>v</sub> = ${legs} legs × ${f(Atie,1)} = ${f(Av,1)} mm²; A<sub>v,min</sub> = ${f(AvminCoef,3)} b<sub>w</sub>s/f<sub>yt</sub> = ${f(Avmin,1)} mm²`);
+    lines.push(`N<sub>u</sub>/6A<sub>g</sub> = ${f(Pu,0)}×10³/(6 × ${f(Ag,0)}) = ${f(PuN/(6*Ag),3)} MPa, limited to 0.05f'c = ${f(0.05*fc,3)} MPa  →  <span class="r">${f(axT,3)} MPa</span>`);
+    let Vc;
+    if(avOK){
+      const Va=(0.17*lam*sqfc+axT)*bw*d/1e3, Vb=(0.66*lam*Math.cbrt(rhoW)*sqfc+axT)*bw*d/1e3; Vc=Math.max(Va,Vb);
+      lines.push(`A<sub>v</sub> ≥ A<sub>v,min</sub>: V<sub>c</sub> is the larger of Table 22.5.5.1 (a) and (b); ρ<sub>w</sub> = ${nface} × ${f(Ab,1)}/(${f(bw,0)} × ${f(d,1)}) = ${f(rhoW,5)} (bars on the tension face)`);
+      lines.push(`(a) [0.17λ√f'c + N<sub>u</sub>/6A<sub>g</sub>]b<sub>w</sub>d = [0.17×${f(sqfc,2)} + ${f(axT,3)}]×${f(bw,0)}×${f(d,1)}/10³ = ${f(Va,1)} kN`);
+      lines.push(`(b) [0.66λ(ρ<sub>w</sub>)<sup>1/3</sup>√f'c + N<sub>u</sub>/6A<sub>g</sub>]b<sub>w</sub>d = [0.66×${f(Math.cbrt(rhoW),4)}×${f(sqfc,2)} + ${f(axT,3)}]×${f(bw,0)}×${f(d,1)}/10³ = ${f(Vb,1)} kN`);
+    } else {
+      const lamS=Math.min(Math.sqrt(2/(1+0.004*d)),1);
+      Vc=(0.66*lamS*lam*Math.cbrt(rhoW)*sqfc+axT)*bw*d/1e3;
+      lines.push(`A<sub>v</sub> &lt; A<sub>v,min</sub>: Table 22.5.5.1 (c) with λ<sub>s</sub> = √(2/(1 + 0.004d)) = ${f(lamS,3)} and ρ<sub>w</sub> = ${f(rhoW,5)}`);
+      lines.push(`V<sub>c</sub> = [0.66λ<sub>s</sub>λ(ρ<sub>w</sub>)<sup>1/3</sup>√f'c + N<sub>u</sub>/6A<sub>g</sub>]b<sub>w</sub>d = ${f(Vc,1)} kN`);
+    }
+    if(Vc>VcMax){ Vc=VcMax; lines.push(`Limited to 0.42λ√f'c b<sub>w</sub>d = ${f(VcMax,1)} kN`); }
+    const Vs=Av*fytV*d/s/1e3, VsReq=Math.max(Vu/phiV-Vc,0), VsLim=0.66*sqfc*bw*d/1e3;
+    const phiVn=phiV*(Vc+Vs), secLim=phiV*(Vc+VsLim);
+    const need=Vu>0.5*phiV*Vc, high=Vs>0.33*sqfc*bw*d/1e3 && need;
+    const sMax=high ? Math.min(d/4,300) : Math.min(d/2,600);
+    lines.push(`V<sub>c</sub> = <span class="r">${f(Vc,1)} kN</span>; V<sub>s</sub> = A<sub>v</sub>f<sub>yt</sub>d/s = ${f(Av,1)}×${f(fytV,0)}×${f(d,1)}/${f(s,0)}/10³ = <span class="r">${f(Vs,1)} kN</span>`);
+    lines.push(`φV<sub>n</sub> = 0.75 × (${f(Vc,1)} + ${f(Vs,1)}) = <span class="r">${f(phiVn,1)} kN</span>; V<sub>u${dir}</sub> = ${f(Vu,1)} kN; utilisation ${f(Vu/phiVn,3)}`);
+    lines.push(`Section limit: V<sub>u</sub> ≤ φ(V<sub>c</sub> + 0.66√f'c b<sub>w</sub>d) = ${f(secLim,1)} kN`);
+    lines.push(need ? `V<sub>u</sub> &gt; 0.5φV<sub>c</sub> = ${f(0.5*phiV*Vc,1)} kN: shear reinforcement is required, at least A<sub>v,min</sub>, at s ≤ ${high?"min(d/4, 300)":"min(d/2, 600)"} = <span class="r">${f(sMax,0)} mm</span>`
+                    : `V<sub>u</sub> ≤ 0.5φV<sub>c</sub> = ${f(0.5*phiV*Vc,1)} kN: shear reinforcement is not required; the ties follow 25.7.2 only`);
+    Sx(`Shear along ${dir} (with bending about ${dir==="y"?"x":"y"})`,"22.5.5.1, 22.5.8.5.3, 10.6.2, 10.7.6.5.2",lines,
+      ed==="25" ? "318-25 adds a lower bound to V<sub>c</sub>. It is not applied here, which is conservative." : "");
+    const G="Shear";
+    C(G,`Section size for shear along ${dir}`,"22.5.1.2",`V<sub>u</sub> = ${f(Vu,1)} kN`,`≤ ${f(secLim,1)} kN`, Vu<=secLim);
+    C(G,`Shear strength along ${dir}, φV<sub>n</sub> ≥ V<sub>u</sub>`,"22.5.1.1",`V<sub>u</sub> = ${f(Vu,1)} kN`,`φV<sub>n</sub> = ${f(phiVn,1)} kN`, phiVn>=Vu);
+    C(G,`Minimum shear reinforcement along ${dir}`,"10.6.2.1, 10.6.2.2", need ? `≥ ${f(Avmin,1)} mm²` : "Not required",`${f(Av,1)} mm²`, !need||avOK);
+    if(need) C(G,`Spacing of shear reinforcement along ${dir}`,"10.7.6.5.2",`≤ ${f(sMax,0)} mm`,`${f(s,0)} mm`, s<=sMax);
+    return {d,Av,Avmin,avOK,Vc,Vs,VsReq,phiVn,secLim,need,sMax,Vu,legs,sStr: VsReq>0 ? Av*fytV*d/(VsReq*1e3) : Infinity, sMin: need ? Av*fytV/(AvminCoef*bw) : Infinity};
+  }
+  const shY=shear("y",Vuy,b,h,nx,legsY), shX=shear("x",Vux,h,b,ny,legsX);
+  const rx=Vux/shX.phiVn, ry=Vuy/shY.phiVn, biShear=rx>0.5&&ry>0.5;
+  Sx("Shear on both axes","22.5.1.10, 22.5.1.11",
+    [`v<sub>u,x</sub>/φv<sub>n,x</sub> = ${f(Vux,1)}/${f(shX.phiVn,1)} = <span class="r">${f(rx,3)}</span>; v<sub>u,y</sub>/φv<sub>n,y</sub> = ${f(Vuy,1)}/${f(shY.phiVn,1)} = <span class="r">${f(ry,3)}</span>`,
+     biShear ? `Both ratios exceed 0.5, so their sum must not exceed 1.5: ${f(rx,3)} + ${f(ry,3)} = <span class="r">${f(rx+ry,3)}</span>` : `At least one ratio is 0.5 or less, so the interaction of shear on the two axes may be neglected`]);
+  C("Shear","Shear on both axes","22.5.1.10, 22.5.1.11", biShear ? "Sum of ratios ≤ 1.5" : "Interaction neglected", biShear ? f(rx+ry,3) : `${f(rx,2)} and ${f(ry,2)}`, !biShear||rx+ry<=1.5);
+
+  // ===== F =====
+  P("F. Ties");
+  const dtMin = db<=32 ? 10 : 12;
+  const sTie=Math.min(16*db,48*dtie,Math.min(b,h)), sClearMin=4/3*agg;
+  const legsReq = (n,clr) => clr>150 ? n : Math.floor(n/2)+1;
+  const reqY=legsReq(nx,clrX), reqX=legsReq(ny,clrY);
+  Sx("Tie size and spacing","25.7.2.1, 25.7.2.2",
+    [`Longitudinal bars Ø${f(db,0)}: minimum tie size ${db<=32 ? "No. 10 (10 mm)" : "No. 13 (12 mm metric bar accepted)"}; provided Ø${f(dtie,0)}`,
+     `s<sub>max</sub> = min(16d<sub>b</sub>, 48d<sub>tie</sub>, least dimension) = min(${f(16*db,0)}, ${f(48*dtie,0)}, ${f(Math.min(b,h),0)}) = <span class="r">${f(sTie,0)} mm</span>; provided s = ${f(s,0)} mm`,
+     `Clear spacing of ties = s − d<sub>tie</sub> = ${f(s-dtie,0)} mm; minimum 4/3 d<sub>agg</sub> = ${f(sClearMin,1)} mm`],
+    "Place the first tie not more than s/2 above the footing or slab, and the last not more than s/2 below the lowest reinforcement of the slab or beam above (10.7.6.2).");
+  Sx("Lateral support of longitudinal bars","25.7.2.3",
+    [`Every corner bar and every alternate bar must sit in the corner of a tie or crosstie, and no bar may be more than 150 mm clear from a supported bar.`,
+     `Faces of width b: ${nx} bars at ${f(clrX,1)} mm clear  →  ${clrX>150 ? "more than 150 mm, every bar tied" : "alternate bars tied"}: at least <span class="r">${reqY} legs</span> parallel to h; provided ${legsY}`,
+     `Faces of depth h: ${ny} bars at ${f(clrY,1)} mm clear  →  ${clrY>150 ? "more than 150 mm, every bar tied" : "alternate bars tied"}: at least <span class="r">${reqX} legs</span> parallel to b; provided ${legsX}`],
+    "The two outer legs in each direction belong to the perimeter tie. The others are crossties or inner ties, with 135° hooks or alternating 90° and 135° hooks, placed on the bars shown in the detail.");
+  C("Ties","Tie diameter","25.7.2.2",`≥ ${dtMin} mm`,`Ø${f(dtie,0)}`, dtie>=dtMin);
+  C("Ties","Tie spacing","25.7.2.1(b)",`≤ ${f(sTie,0)} mm`,`${f(s,0)} mm`, s<=sTie);
+  C("Ties","Clear spacing of ties","25.7.2.1(a)",`≥ ${f(sClearMin,1)} mm`,`${f(s-dtie,0)} mm`, s-dtie>=sClearMin);
+  C("Ties","Lateral support of bars on faces of width b","25.7.2.3",`≥ ${reqY} legs parallel to h`,`${legsY} legs`, legsY>=reqY);
+  C("Ties","Lateral support of bars on faces of depth h","25.7.2.3",`≥ ${reqX} legs parallel to b`,`${legsX} legs`, legsX>=reqX);
+
+  // ===== G =====
+  P("G. Lap splices");
+  const fsT = biState ? biState.fsT : (axialOK ? 0 : fy);
+  const lscBase = fy<=420 ? 0.071*fy*db : (0.13*fy-24)*db;
+  const lsc = Math.max(lscBase*(fc<21 ? 4/3 : 1), 300);
+  const psiG = fy<=420 ? 1.0 : (fy<=550 ? 1.15 : 1.3);
+  const condMet = clrMin>=db && covBar>=db;
+  const den = db<22 ? (condMet ? 2.1 : 1.4) : (condMet ? 1.7 : 1.1);
+  const ld = Math.max(fy*psiG/(den*lam*sqfc)*db, 300), lst=Math.max(1.3*ld,300);
+  const inTension = fsT>0, lap = inTension ? Math.max(lst,lsc) : lsc;
+  Sx("Lap splice of longitudinal bars","10.7.5.2, 25.5.5.1, 25.5.2.1, 25.4.2.3",
+    [`Largest tensile bar stress at the design strength condition for P<sub>u</sub>: f<sub>s</sub> = <span class="r">${f(fsT,0)} MPa</span> (${inTension ? `${f(fsT/fy*100,0)}% of f<sub>y</sub>` : "all bars in compression"})`,
+     `Compression lap: ℓ<sub>sc</sub> = ${fy<=420 ? `0.071f<sub>y</sub>d<sub>b</sub> = 0.071×${f(fy,0)}×${f(db,0)}` : `(0.13f<sub>y</sub> − 24)d<sub>b</sub> = (0.13×${f(fy,0)} − 24)×${f(db,0)}`} = ${f(lscBase,0)} mm${fc<21 ? ", × 4/3 for f'c below 21 MPa" : ""}, not less than 300  →  <span class="r">${f(lsc,0)} mm</span>`,
+     `Tension development: ℓ<sub>d</sub> = f<sub>y</sub>ψ<sub>t</sub>ψ<sub>e</sub>ψ<sub>g</sub>/(${den}λ√f'c) × d<sub>b</sub> = ${f(fy,0)}×1.0×1.0×${psiG}/(${den}×1.0×${f(sqfc,2)}) × ${f(db,0)}, not less than 300  →  ${f(ld,0)} mm (${condMet ? "clear spacing and cover at least d<sub>b</sub>, with ties" : "other cases"})`,
+     `Class B tension lap: 1.3ℓ<sub>d</sub> = <span class="r">${f(lst,0)} mm</span>`,
+     inTension ? `Bars go into tension, so use the larger of the two: lap = <span class="r">${f(lap,0)} mm</span>` : `No bar is in tension, so the compression lap applies: lap = <span class="r">${f(lap,0)} mm</span>`],
+    "All bars are taken as spliced at one section, so a tension splice is Class B. The bar stress is taken at the strength condition for P<sub>u</sub>, which is at least the stress under the factored loads. Check every load combination: the lap must suit the one that puts the bars in most tension." + (ed==="25" ? " 318-25 changed hooked and headed bar development; the straight-bar expressions here are those of 318-19." : ""));
+  C("Lap splices","Lap splice length","10.7.5.2, 25.5", inTension ? "Class B tension lap" : "Compression lap", `Provide ${f(Math.ceil(lap/10)*10,0)} mm`, true, true);
+
+  // ===== hints =====
+  const hints={};
+  const okLong = rhog>=0.01 && rhog<=0.08 && util<=1 && clrMin>=clrMinReq && axialOK;
+  hints.long={cls: okLong?"ok":"bad", html:
+    `${nBars}-Ø${f(db,0)} = <b>${f(Ast,0)} mm²</b>, ρ<sub>g</sub> = <b>${f(rhog*100,2)}%</b> (allowed 1% to 8%, so ${f(0.01*Ag,0)} to ${f(0.08*Ag,0)} mm²). ` +
+    (axialOK ? (Mur>0 ? `Axial load and bending utilisation <b>${f(util,2)}</b>.` : `Axial utilisation <b>${f(util,2)}</b>.`) : `P<sub>u</sub> is above φP<sub>n,max</sub> = ${f(phiPnmax/1e3,0)} kN: enlarge the section or add steel.`) +
+    (util>1 && axialOK ? " Add bars, use a larger bar or enlarge the section." : "") +
+    (clrMin<clrMinReq ? ` Clear spacing ${f(clrMin,0)} mm is below ${f(clrMinReq,0)} mm.` : "")};
+  const cand=[[sTie,"16d<sub>b</sub>, 48d<sub>tie</sub> or the least dimension (25.7.2.1)"]];
+  [shY,shX].forEach((q,i)=>{ const dn=i?"x":"y";
+    if(q.need){ cand.push([q.sMax,`the shear spacing limit along ${dn} (10.7.6.5.2)`]); cand.push([q.sMin,`minimum shear reinforcement along ${dn}`]); }
+    cand.push([q.sStr,`shear strength along ${dn}`]); });
+  const gov=cand.reduce((m,x)=>x[0]<m[0]?x:m);
+  const tieChecks=checks.filter(k=>!k.info && (k.group==="Ties" || /shear reinforcement|Shear strength/.test(k.name)));
+  hints.tie={cls: tieChecks.every(k=>k.ok)?"ok":"bad", html:
+    `Ø${f(dtie,0)} ties: spacing up to <b>${f(Math.floor(gov[0]+1e-9),0)} mm</b>, governed by ${gov[1]}. Providing ${f(s,0)} mm. ` +
+    `Bar support needs at least <b>${reqY} legs</b> parallel to h and <b>${reqX} legs</b> parallel to b; providing ${legsY} and ${legsX}.` +
+    (dtie<dtMin ? ` Tie size must be at least ${dtMin} mm.` : "")};
+
+  // ===== outcome =====
+  const graded=checks.filter(k=>!k.info), failed=graded.filter(k=>!k.ok), allOk=!failed.length;
+  const stt = ok => ok ? "PASS" : "FAIL";
+  const gOk = g => graded.filter(k=>k.group===g).every(k=>k.ok);
+  const inRows=[
+    ["Code edition", edName, ""],
+    ["Frame / unsupported length ℓ<sub>u</sub>", `${FRAME_NAME[frame]} / ${f(lu,2)}`, "m"],
+    ["k<sub>x</sub> / k<sub>y</sub> / β<sub>dns</sub>", `${f(kx,2)} / ${f(ky,2)} / ${f(bdns,2)}`, "–"],
+    ["Factored axial load, P<sub>u</sub>", f(Pu,1), "kN"],
+    ["End moments about x, M<sub>2</sub> / M<sub>1</sub>", `${f(v.M2x,1)} / ${f(v.M1x,1)} (${CURV_NAME[v.curvx]})`, "kN·m"],
+    ["End moments about y, M<sub>2</sub> / M<sub>1</sub>", `${f(v.M2y,1)} / ${f(v.M1y,1)} (${CURV_NAME[v.curvy]})`, "kN·m"],
+    ["Factored shear, V<sub>ux</sub> / V<sub>uy</sub>", `${f(Vux,1)} / ${f(Vuy,1)}`, "kN"],
+    ["f'<sub>c</sub> / f<sub>y</sub> / f<sub>yt</sub>", `${f(fc,1)} / ${f(fy,0)} / ${f(fyt,0)}`, "MPa"],
+    ["E<sub>s</sub> / ε<sub>cu</sub>", `${f(Es,0)} / ${f(ecu,4)}`, "MPa / –"],
+    ["b × h", `${f(b,0)} × ${f(h,0)}`, "mm"],
+    ["Longitudinal bars", `${nBars}-Ø${f(db,0)} (${nx} per b face, ${ny} per h face)`, ""],
+    ["Ties", `Ø${f(dtie,0)} @ ${f(s,0)}, ${legsY} legs parallel to h, ${legsX} parallel to b`, "mm"],
+    ["Exposure / clear cover to ties", `${EXP_NAME[exposure]} / ${f(cov,0)}`, "mm"],
+    ["Max aggregate size", f(agg,0), "mm"]];
+  const slRow = o => [`Slenderness about ${o.ax}`, `kℓ<sub>u</sub>/r = ${f(o.sl,1)}`, o.isSl ? `Limit ${f(o.limit,1)}: slender, δ = ${f(o.delta,3)}, M<sub>c</sub> = ${f(o.Mc,1)} kN·m` : `Limit ${f(o.limit,1)}: not slender, M<sub>u</sub> = ${f(o.Mc,1)} kN·m`, o.isSl ? stt(o.stable && o.delta<=1.4) : "PASS"];
+  const shRow = (q,dn) => [`Shear along ${dn}`, `φV<sub>n</sub> = ${f(q.phiVn,1)} kN`, `V<sub>u</sub> = ${f(q.Vu,1)} kN, V<sub>c</sub> = ${f(q.Vc,1)} kN, V<sub>s</sub> = ${f(q.Vs,1)} kN; shear reinforcement ${q.need?"required":"not required"}`, stt(graded.filter(k=>k.group==="Shear" && new RegExp(`along ${dn}`).test(k.name)).every(k=>k.ok))];
+  const sumRows=[
+    {g:"Design basis"},
+    ["Design code", edName, `${FRAME_NAME[frame]} frame, ℓ<sub>u</sub> = ${f(lu,2)} m`, ""],
+    ["Section", `${f(b,0)} × ${f(h,0)} mm tied column`, `A<sub>g</sub> = ${f(Ag,0)} mm²`, ""],
+    ["Materials and cover", `f'c = ${f(fc,0)}, f<sub>y</sub> = ${f(fy,0)}, f<sub>yt</sub> = ${f(fyt,0)} MPa`, `β<sub>1</sub> = ${f(beta1,3)}, cover ${f(cov,0)} mm`, stt(gOk("Materials and cover"))],
+    {g:"Longitudinal reinforcement"},
+    ["Provided steel", `${nBars}-Ø${f(db,0)} = ${f(Ast,0)} mm²`, `ρ<sub>g</sub> = ${f(rhog*100,2)}% (1% to 8%); clear spacing ${f(clrMin,0)} mm, minimum ${f(clrMinReq,0)} mm`, stt(gOk("Longitudinal reinforcement"))],
+    {g:"Slenderness"},
+    slRow(sxx), slRow(syy),
+    {g:"Axial load and bending"},
+    ["Axial strength, φP<sub>n,max</sub>", `${f(phiPnmax/1e3,0)} kN`, `P<sub>u</sub> = ${f(Pu,0)} kN, ${f(PuN/phiPnmax*100,1)}% of φP<sub>n,max</sub>`, stt(axialOK)],
+    ["Design moments", `M<sub>ux</sub> = ${f(Mux,1)}, M<sub>uy</sub> = ${f(Muy,1)} kN·m`, `Resultant ${f(Mur,1)} kN·m`, ""],
+    ["Uniaxial strength at P<sub>u</sub>", `φM<sub>nx</sub> = ${f(phiMnx0,1)}, φM<sub>ny</sub> = ${f(phiMny0,1)} kN·m`, "", ""],
+    ...(Mur>0 ? [[isBiax ? "Biaxial strength at P<sub>u</sub>" : "Strength at P<sub>u</sub>", `φM<sub>n</sub> = ${f(phiMnr,1)} kN·m`, biState ? `Utilisation ${f(util*100,1)}%; ε<sub>t</sub> = ${f5(biState.et)}, ${zoneOf(biState)}, φ = ${f(biState.phi,3)}` : "No strength at this axial load", stt(util<=1)]] : []),
+    {g:"Shear"},
+    shRow(shY,"y"), shRow(shX,"x"),
+    ["Shear on both axes", biShear ? `Sum of ratios ${f(rx+ry,2)}` : "Interaction neglected", `Ratios ${f(rx,2)} (x) and ${f(ry,2)} (y)`, stt(!biShear||rx+ry<=1.5)],
+    {g:"Ties and splices"},
+    ["Ties", `Ø${f(dtie,0)} @ ${f(s,0)} mm`, `s<sub>max</sub> = ${f(sTie,0)} mm; legs ${legsY} parallel to h (need ${reqY}), ${legsX} parallel to b (need ${reqX})`, stt(gOk("Ties"))],
+    ["Lap splice", `${f(Math.ceil(lap/10)*10,0)} mm`, inTension ? `Class B tension lap, bar stress ${f(fsT,0)} MPa in tension` : "Compression lap, no bar in tension", "NOTE"],
+    {g:"Result"},
+    ["Checks satisfied", `${graded.length-failed.length} of ${graded.length}`, failed.length ? "See items to resolve" : "", ""]
+  ];
+  const outcomeRow=["Overall outcome", allOk?"Design adequate":"Design not adequate", allOk?"All checks satisfied":`${failed.length} check${failed.length>1?"s":""} not satisfied`, stt(allOk)];
+  const actions=failed.map(k=>[k.name,k.ref,k.demand,k.capacity,advice(k.name)]);
+  const nSets=Math.floor(lu*1000/s)+1, lapR=Math.ceil(lap/10)*10;
+  const schedule=[
+    ["a","Longitudinal bars","Full height, lapped above the floor",nBars,db,"–",`A<sub>st</sub> = ${f(Ast,0)} mm², lap ${f(lapR,0)} mm`],
+    ["b","Perimeter ties","Full height",`≈ ${nSets}`,dtie,`${f(s,0)} c/c`,"Closed, 135° hooks"]];
+  if(legsY>2) schedule.push(["c","Crossties parallel to h","Each tie set",`${legsY-2} per set`,dtie,`${f(s,0)} c/c`,"Hooks at both ends"]);
+  if(legsX>2) schedule.push(["d","Crossties parallel to b","Each tie set",`${legsX-2} per set`,dtie,`${f(s,0)} c/c`,"Hooks at both ends"]);
+
+  return {v,edName,inRows,steps,checks,sumRows,outcomeRow,actions,allOk,failed,schedule,hints,
+    Pu,Mux,Muy,Mur,phiMnr,util,phiPnmax:phiPnmax/1e3,axialOK,isBiax,nBars,Ast,rhog,lap:lapR,shX,shY,
+    plots:{x:cvx,y:cvy,contour,phiMnx0,phiMny0},
+    geo:{b,h,nx,ny,db,dtie,legsX,legsY,s,cov,dc,bars,lu,lap:lapR,nBars,Ast}};
+}
+
+function advice(name){
+  const s=strip(name);
+  if(s.startsWith("Concrete strength")) return "Use f'c of at least 17 MPa.";
+  if(s.startsWith("Longitudinal bar fy")) return "Use bars with fy no more than 690 MPa.";
+  if(s.startsWith("Tie fyt")) return "Use ties with fyt no more than 550 MPa.";
+  if(s.startsWith("Cover")) return "Increase the clear cover.";
+  if(s.startsWith("Minimum steel")) return "Add bars or use a larger bar to reach 1% of Ag, or reduce the section.";
+  if(s.startsWith("Maximum steel")) return "Enlarge the section so the steel is no more than 8% of Ag.";
+  if(s.startsWith("Number of bars")) return "Provide at least 4 bars.";
+  if(s.startsWith("Clear spacing of bars")) return "Use fewer, larger bars or a larger section.";
+  if(s.startsWith("Stability")) return "Enlarge the section or reduce the unsupported length.";
+  if(s.startsWith("Second-order")) return "Stiffen the column: enlarge the section or reduce the unsupported length.";
+  if(s.startsWith("Axial strength")) return "Enlarge the section, raise f'c or add steel.";
+  if(s.startsWith("Uniaxial strength") || s.startsWith("Biaxial") || s.startsWith("Combined")) return "Add bars, use a larger bar, or enlarge the section in the direction of bending.";
+  if(s.startsWith("Section size for shear")) return "Enlarge the section; ties alone cannot fix this.";
+  if(s.startsWith("Shear strength")) return "Reduce tie spacing, add legs or use a larger tie.";
+  if(s.startsWith("Minimum shear")) return "Reduce tie spacing, add legs or use a larger tie.";
+  if(s.startsWith("Spacing of shear")) return "Reduce tie spacing to the limit.";
+  if(s.startsWith("Shear on both axes")) return "Reduce tie spacing or add legs so the two shear ratios add up to 1.5 or less.";
+  if(s.startsWith("Tie diameter")) return "Use a larger tie.";
+  if(s.startsWith("Tie spacing")) return "Reduce tie spacing to the limit.";
+  if(s.startsWith("Clear spacing of ties")) return "Increase tie spacing or use a smaller aggregate.";
+  if(s.startsWith("Lateral support")) return "Add crossties so the required bars are held at a tie corner.";
+  return "";
+}
+</script>
+<script>
+const DEFAULTS = {ed:"19",frame:"nonsway",lu:3.2,kx:1,ky:1,bdns:0.6,Pu:1800,M2x:220,M1x:150,curvx:"single",M2y:90,M1y:60,curvy:"single",Vux:50,Vuy:110,
+  fc:30,fy:420,fyt:420,Es:200000,ecu:0.003,b:400,h:500,nx:3,ny:4,db:25,dtie:10,s:250,legsY:2,legsX:3,exposure:"int",cov:40,agg:20};
+const ids = Object.keys(DEFAULTS);
+const POS = ["lu","kx","ky","Pu","fc","fy","fyt","Es","ecu","b","h","db","dtie","s","cov","agg"];
+const NONNEG = ["bdns","M2x","M1x","M2y","M1y","Vux","Vuy"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const today = () => new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+
+function read(){
+  const v = {};
+  ids.forEach(k => { const el=$(k); v[k] = (el.tagName==="SELECT") ? el.value : parseFloat(el.value); });
+  v.proj = $("proj").value.trim(); v.mark = $("mark").value.trim();
+  return v;
+}
+
+let M = null, stale = false;
+
+function calculate(){
+  const v = read();
+  const bad = POS.filter(k => !(v[k] > 0)).concat(NONNEG.filter(k => !(v[k] >= 0)));
+  ["nx","ny"].forEach(k => { if (!(v[k] >= 2) || v[k] % 1) bad.push(k + " (whole number, at least 2)"); });
+  if (!(v.legsY >= 2) || v.legsY % 1 || v.legsY > v.nx) bad.push("legs parallel to h (2 to nx)");
+  if (!(v.legsX >= 2) || v.legsX % 1 || v.legsX > v.ny) bad.push("legs parallel to b (2 to ny)");
+  if (bad.length){ toast("Check these inputs: " + bad.join(", "), true); return; }
+  if (v.M1x > v.M2x){ const t=v.M1x; v.M1x=v.M2x; v.M2x=t; }
+  if (v.M1y > v.M2y){ const t=v.M1y; v.M1y=v.M2y; v.M2y=t; }
+  if (v.b - 2*(v.cov+v.dtie) - v.db <= 0 || v.h - 2*(v.cov+v.dtie) - v.db <= 0){ toast("The section is too small for this cover and bar size.", true); return; }
+  try { M = design(v); } catch(e){ toast("Calculation failed: " + e.message, true); return; }
+  stale = false;
+  render();
+  toast("Calculated.");
+}
+
+const badge = s => s ? `<span class="badge ${s==="PASS"?"pass":s==="FAIL"?"fail":"info"}">${s}</span>` : "";
+const statusOf = k => k.info ? "NOTE" : (k.ok ? "PASS" : "FAIL");
+const headline = () => { const v=M.v;
+  return `${f(v.b,0)} × ${f(v.h,0)} mm, ${M.nBars}-Ø${f(v.db,0)} (ρg = ${f(M.rhog*100,2)}%), Ø${f(v.dtie,0)} ties @ ${f(v.s,0)} mm`; };
+const strengthLine = () => `P<sub>u</sub> = ${f(M.Pu,0)} kN against φP<sub>n,max</sub> = ${f(M.phiPnmax,0)} kN; M<sub>u</sub> = ${f(M.Mur,1)} kN·m against φM<sub>n</sub> = ${f(M.phiMnr,1)} kN·m at P<sub>u</sub>; shear φV<sub>n</sub> = ${f(M.shX.phiVn,0)} kN (x) and ${f(M.shY.phiVn,0)} kN (y).`;
+
+function render(){
+  const {v, edName, inRows, steps, checks, sumRows, outcomeRow, actions, allOk, failed} = M;
+  $("empty").hidden = true; $("results").hidden = false; $("stale").hidden = true;
+  $("verdict").className = "verdict " + (allOk ? "pass" : "fail");
+  $("verdict").innerHTML = `<div class="big">${allOk ? "PASS" : "FAIL"}</div>
+    <div class="txt"><b>${esc(v.mark || "Column")}: ${headline().replace("ρg","ρ<sub>g</sub>")}</b> (${edName}). ${strengthLine()}
+    ${allOk ? "All checks satisfied." : failed.length + " check" + (failed.length>1?"s":"") + " not satisfied: " + failed.map(k=>strip(k.name)).join("; ") + "."}</div>`;
+
+  let lastG = "", i = 0;
+  $("checks").innerHTML = `<tr><th>#</th><th>Check</th><th>Clause</th><th>Required</th><th>Provided / actual</th><th>Status</th></tr>` +
+    checks.map(k => { let r = "";
+      if (k.group !== lastG){ lastG = k.group; r += `<tr class="grp"><td colspan="6">${k.group}</td></tr>`; }
+      return r + `<tr><td>${++i}</td><td>${k.name}</td><td>${k.ref}</td><td class="num">${k.demand}</td><td class="num">${k.capacity}</td><td>${badge(statusOf(k))}</td></tr>`; }).join("");
+
+  $("inputs").innerHTML = `<tr><th>Parameter</th><th>Value</th><th>Unit</th></tr>` + inRows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+
+  let lastP = "";
+  $("steps").innerHTML = steps.map((s,i)=>{ let h = "";
+    if (s.part !== lastP){ lastP = s.part; h += `<div class="part">${s.part}</div>`; }
+    return h + `<div class="step"><div class="step-h"><b>Step ${i+1}. ${s.title}</b><span class="ref">${edName} ${s.ref}</span></div>
+     <div class="calc">${s.lines.join("<br>")}</div>${s.note?`<p>${s.note}</p>`:""}</div>`; }).join("");
+
+  $("figs").innerHTML = plotSvgs(M).map(p=>p.svg).join("");
+  document.querySelector("aside").classList.remove("hints-stale");
+  [["long","hint_long"],["tie","hint_tie"]].forEach(([k,id]) => { const h = M.hints[k], el = $(id); el.hidden = false; el.className = "hint " + h.cls; el.innerHTML = h.html; });
+
+  let html = `<div class="tscroll"><table><tr><th>Item</th><th>Result</th><th>Remark</th><th>Status</th></tr>` +
+    sumRows.map(r => r.g ? `<tr class="grp"><td colspan="4">${r.g}</td></tr>` : `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td><td>${badge(r[3])}</td></tr>`).join("") +
+    `<tr class="total"><td>${outcomeRow[0]}</td><td>${outcomeRow[1]}</td><td>${outcomeRow[2]}</td><td>${badge(outcomeRow[3])}</td></tr></table></div>`;
+  if (actions.length){
+    html += `<h4>Items to resolve</h4><div class="tscroll"><table><tr><th>Check</th><th>Clause</th><th>Required</th><th>Actual</th><th>Action</th></tr>` +
+      actions.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td><td>${r[4]}</td></tr>`).join("") + `</table></div>`;
+  }
+  html += `<p class="note">${SCOPE_NOTE}</p>`;
+  $("summary").innerHTML = html;
+
+  const det = detailSvgs(M);
+  $("detail").innerHTML = `<figure>${det.sec}<figcaption>Cross-section (to scale)</figcaption></figure><figure>${det.elev}<figcaption>Elevation (height to scale, width exaggerated)</figcaption></figure>`;
+  $("schedule").innerHTML = `<tr><th>Mark</th><th>Description</th><th>Location</th><th>No.</th><th>Dia (mm)</th><th>Spacing (mm)</th><th>Remark</th></tr>` +
+    M.schedule.map(r=>`<tr>${r.map((c,j)=>`<td${j>=3&&j<=5?' class="num"':''}>${c}</td>`).join("")}</tr>`).join("");
+  updateButtons();
+}
+
+// ---------- interaction diagrams ----------
+const FONT = 'font-family="Helvetica, Arial, sans-serif"';
+function nice(max){ if(!(max>0)) return {max:1,step:0.25}; const raw=max/5, p=Math.pow(10,Math.floor(Math.log10(raw))), m=raw/p; const step=(m<=1?1:m<=2?2:m<=5?5:10)*p; return {max:Math.ceil(max/step)*step, step}; }
+function chart(title, xl, yl, series, pts, xmaxIn, ymaxIn, extra){
+  const W=380,H=340,l=62,r=16,t=34,bt=46, pw=W-l-r, ph=H-t-bt;
+  const nx=nice(xmaxIn*1.05), ny=nice(ymaxIn*1.05);
+  const X=x=>l+x/nx.max*pw, Y=y=>t+ph-y/ny.max*ph;
+  let g="";
+  for(let x=0;x<=nx.max+1e-9;x+=nx.step) g+=`<line x1="${X(x)}" y1="${t}" x2="${X(x)}" y2="${t+ph}" stroke="#e7e4da"/><text x="${X(x)}" y="${t+ph+15}" text-anchor="middle" fill="#5d6670">${f(x,0)}</text>`;
+  for(let y=0;y<=ny.max+1e-9;y+=ny.step) g+=`<line x1="${l}" y1="${Y(y)}" x2="${l+pw}" y2="${Y(y)}" stroke="#e7e4da"/><text x="${l-6}" y="${Y(y)+4}" text-anchor="end" fill="#5d6670">${f(y,0)}</text>`;
+  const path=(a)=>a.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ");
+  const sv=series.map(s=>`<path d="${path(s.pts)}" fill="none" stroke="${s.col}" stroke-width="${s.w||2}" ${s.dash?`stroke-dasharray="${s.dash}"`:""}/>`).join("");
+  const pv=pts.map(p=>`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4.5" fill="${p.ok?"#b3261e":"#b3261e"}" stroke="#fff" stroke-width="1.2"/><text x="${X(p.x)+8}" y="${Y(p.y)-7}" fill="#b3261e" font-weight="bold">${p.label}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${FONT} font-size="11" fill="#1d2329">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
+    <text x="${l}" y="18" font-size="12.5" font-weight="bold">${title}</text>${g}
+    <rect x="${l}" y="${t}" width="${pw}" height="${ph}" fill="none" stroke="#1d2329"/>
+    ${extra?extra(X,Y):""}${sv}${pv}
+    <text x="${l+pw/2}" y="${H-10}" text-anchor="middle">${xl}</text>
+    <text transform="translate(14,${t+ph/2}) rotate(-90)" text-anchor="middle">${yl}</text></svg>`;
+}
+function plotSvgs(M){
+  const P=M.plots, out=[];
+  const mk=(c,ax,Mu,cap)=>{ const xm=Math.max(...c.nom.map(p=>p[0]),Mu), ym=Math.max(...c.nom.map(p=>p[1]),M.Pu);
+    return chart(`Bending about ${ax}`, `Moment about ${ax} (kN·m)`, "Axial load (kN)",
+      [{pts:c.nom,col:"#9aa2a9",w:1.6},{pts:c.des,col:"#1f4e79",w:2.2}], [{x:Mu,y:M.Pu,label:`Mu${ax}, Pu`}], xm, ym); };
+  out.push({svg:mk(P.x,"x",M.Mux), w:380, h:340});
+  out.push({svg:mk(P.y,"y",M.Muy), w:380, h:340});
+  if(P.contour.length>2){
+    const xm=Math.max(...P.contour.map(p=>p[0]),M.Muy), ym=Math.max(...P.contour.map(p=>p[1]),M.Mux);
+    out.push({svg:chart(`Moment contour at Pu = ${f(M.Pu,0)} kN`, "φMny (kN·m)", "φMnx (kN·m)",
+      [{pts:P.contour,col:"#1f4e79",w:2.2}], [{x:M.Muy,y:M.Mux,label:"Muy, Mux"}], xm, ym,
+      (X,Y)=> M.Mur>0 && M.phiMnr>0 ? `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(M.Muy/M.util)}" y2="${Y(M.Mux/M.util)}" stroke="#b3261e" stroke-dasharray="4 3"/>` : ""), w:380, h:340});
+  }
+  return out;
+}
+
+// ---------- reinforcement detail drawings ----------
+function legIdx(n, legs){ const a=[]; for(let i=1;i<legs-1;i++) a.push(Math.round(i*(n-1)/(legs-1))); return [...new Set(a)].filter(i=>i>0&&i<n-1); }
+function detailSvgs(M){
+  const g=M.geo, {b,h,nx,ny,db,dtie,legsX,legsY,s,cov,dc,bars,lu,lap}=g;
+  const sc=Math.min(300/h, 300/b), W=b*sc, H=h*sc, ox=70, oy=34;
+  const VW=ox+W+330, VH=oy+H+64;
+  const PX=x=>ox+(x+b/2)*sc, PY=y=>oy+(h/2-y)*sc;
+  const sw=Math.max(dtie*sc,1.6), tc=cov+dtie/2;
+  const barsSvg=bars.map(q=>`<circle cx="${PX(q.x)}" cy="${PY(q.y)}" r="${db/2*sc}" fill="#b3261e" stroke="#5a120e" stroke-width="0.8"/>`).join("");
+  const spX=(b-2*dc)/(nx-1), spY=(h-2*dc)/(ny-1);
+  let cross="", ctX=0, ctY=0;
+  legIdx(nx,legsY).forEach(i=>{ const x=PX(-b/2+dc+i*spX)+ (db/2+dtie/2)*sc; ctX=x; ctY=oy+H*0.7; cross+=`<line x1="${x}" y1="${PY(h/2-tc)}" x2="${x}" y2="${PY(-h/2+tc)}" stroke="#1f4e79" stroke-width="${sw}"/>`; });
+  legIdx(ny,legsX).forEach(j=>{ const y=PY(-h/2+dc+j*spY)+(db/2+dtie/2)*sc; ctX=ox+W*0.72; ctY=y; cross+=`<line x1="${PX(-b/2+tc)}" y1="${y}" x2="${PX(b/2-tc)}" y2="${y}" stroke="#1f4e79" stroke-width="${sw}"/>`; });
+  const dimH=(x1,x2,y,label)=>`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#1d2329" stroke-width="0.8"/><line x1="${x1}" y1="${y-5}" x2="${x1}" y2="${y+5}" stroke="#1d2329" stroke-width="0.8"/><line x1="${x2}" y1="${y-5}" x2="${x2}" y2="${y+5}" stroke="#1d2329" stroke-width="0.8"/><text x="${(x1+x2)/2}" y="${y+16}" text-anchor="middle">${label}</text>`;
+  const dimV=(x,y1,y2,label,side)=>`<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#1d2329" stroke-width="0.8"/><line x1="${x-5}" y1="${y1}" x2="${x+5}" y2="${y1}" stroke="#1d2329" stroke-width="0.8"/><line x1="${x-5}" y1="${y2}" x2="${x+5}" y2="${y2}" stroke="#1d2329" stroke-width="0.8"/><text transform="translate(${x+(side<0?-8:14)},${(y1+y2)/2}) rotate(-90)" text-anchor="middle">${label}</text>`;
+  const cx0=ox+W+60;
+  const callout=(xF,yF,yT,label,sub,col)=>`<polyline points="${xF},${yF} ${cx0-10},${yT} ${cx0-2},${yT}" fill="none" stroke="${col}" stroke-width="0.9"/><circle cx="${xF}" cy="${yF}" r="2" fill="${col}"/><text x="${cx0+2}" y="${yT+4}" font-weight="bold" fill="${col}">${label}</text><text x="${cx0+2}" y="${yT+19}" fill="#5d6670">${sub}</text>`;
+  const nCross=(legsY-2)+(legsX-2);
+  const sec=`<svg viewBox="0 0 ${VW} ${VH}" width="${VW}" height="${VH}" ${FONT} font-size="12" fill="#1d2329">
+    <defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#d3cfc2" stroke-width="1"/></pattern></defs>
+    <rect x="0" y="0" width="${VW}" height="${VH}" fill="#fff"/>
+    <rect x="${ox}" y="${oy}" width="${W}" height="${H}" fill="#f1efe8"/><rect x="${ox}" y="${oy}" width="${W}" height="${H}" fill="url(#hatch)" stroke="#1d2329" stroke-width="1.5"/>
+    <rect x="${ox+tc*sc}" y="${oy+tc*sc}" width="${W-2*tc*sc}" height="${H-2*tc*sc}" rx="${Math.max(2*dtie*sc,4)}" fill="none" stroke="#4b5560" stroke-width="${sw}"/>
+    ${cross}${barsSvg}
+    ${dimH(ox,ox+W,oy+H+20,`b = ${f(b,0)}`)}
+    ${dimV(ox-28,oy,oy+H,`h = ${f(h,0)}`,-1)}
+    <line x1="${ox+W/2}" y1="${oy-18}" x2="${ox+W/2}" y2="${oy+H+6}" stroke="#7a5a00" stroke-dasharray="8 3 2 3" stroke-width="0.8"/><text x="${ox+W/2+4}" y="${oy-8}" fill="#7a5a00">y</text>
+    <line x1="${ox-10}" y1="${oy+H/2}" x2="${ox+W+22}" y2="${oy+H/2}" stroke="#7a5a00" stroke-dasharray="8 3 2 3" stroke-width="0.8"/><text x="${ox+W+26}" y="${oy+H/2+4}" fill="#7a5a00">x</text>
+    ${callout(PX(b/2-dc)+db/2*sc, PY(h/2-dc), oy+14, `(a) ${g.nBars}-Ø${f(db,0)} longitudinal bars`, `${nx} per b face, ${ny} per h face, Ast = ${f(g.Ast,0)} mm²`, "#b3261e")}
+    ${callout(ox+W-tc*sc, oy+H*0.36, oy+H*0.36-6, `(b) Ø${f(dtie,0)} perimeter tie @ ${f(s,0)} c/c`, `clear cover ${f(cov,0)} mm, 135° hooks`, "#4b5560")}
+    ${nCross ? callout(ctX, ctY, oy+H*0.62+10, `(c) Ø${f(dtie,0)} crossties @ ${f(s,0)} c/c`, [legsY>2?`${legsY-2} parallel to h`:"", legsX>2?`${legsX-2} parallel to b`:""].filter(Boolean).join(", ") + ", hooked round the bars", "#1f4e79") : ""}
+    <text x="${ox}" y="${VH-6}" fill="#5d6670" font-size="11">All dimensions in mm</text></svg>`;
+
+  // elevation
+  const EW=440, EH=520, cx1=150, cw=90, y0=44, Hp=400, px=Hp/(lu*1000), yB=y0+Hp;
+  let ties=""; const step=s*px, every=step<4?Math.ceil(4/step):1, nS=Math.floor((lu*1000-s/2)/s)+1;
+  for(let i=0;i<nS;i+=every){ const y=yB-(s/2+i*s)*px; if(y<y0+1) break; ties+=`<line x1="${cx1+5}" y1="${y}" x2="${cx1+cw-5}" y2="${y}" stroke="#7d868e" stroke-width="1"/>`; }
+  const lapPx=Math.min(lap*px,Hp);
+  const elev=`<svg viewBox="0 0 ${EW} ${EH}" width="${EW}" height="${EH}" ${FONT} font-size="12" fill="#1d2329">
+    <defs><pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#8a8f94" stroke-width="1"/></pattern></defs>
+    <rect x="0" y="0" width="${EW}" height="${EH}" fill="#fff"/>
+    <rect x="${cx1-60}" y="${y0-22}" width="${cw+120}" height="22" fill="url(#hatch2)" stroke="#1d2329"/>
+    <rect x="${cx1-60}" y="${yB}" width="${cw+120}" height="22" fill="url(#hatch2)" stroke="#1d2329"/>
+    <rect x="${cx1}" y="${y0}" width="${cw}" height="${Hp}" fill="#f1efe8" stroke="#1d2329" stroke-width="1.4"/>
+    ${ties}
+    <line x1="${cx1+12}" y1="${y0-18}" x2="${cx1+12}" y2="${yB+18}" stroke="#b3261e" stroke-width="2.6"/>
+    <line x1="${cx1+cw-12}" y1="${y0-18}" x2="${cx1+cw-12}" y2="${yB+18}" stroke="#b3261e" stroke-width="2.6"/>
+    <line x1="${cx1+17}" y1="${yB}" x2="${cx1+17}" y2="${yB-lapPx}" stroke="#b3261e" stroke-width="2.6" stroke-dasharray="5 3"/>
+    <line x1="${cx1+cw-17}" y1="${yB}" x2="${cx1+cw-17}" y2="${yB-lapPx}" stroke="#b3261e" stroke-width="2.6" stroke-dasharray="5 3"/>
+    ${dimV(cx1-22,yB-lapPx,yB,`lap ${f(lap,0)}`,-1)}
+    ${dimV(cx1-82,y0,yB,`lu = ${f(lu*1000,0)}`,-1)}
+    <text x="${cx1+cw+18}" y="${y0+62}" font-weight="bold" fill="#4b5560">(b) Ø${f(dtie,0)} ties @ ${f(s,0)} c/c</text>
+    <text x="${cx1+cw+18}" y="${y0+78}" fill="#5d6670">${every>1?`every ${every}th drawn`:"over the full height"}</text>
+    <text x="${cx1+cw+18}" y="${y0+128}" font-weight="bold" fill="#b3261e">(a) ${g.nBars}-Ø${f(db,0)}</text>
+    <text x="${cx1+cw+18}" y="${y0+144}" fill="#5d6670">longitudinal bars</text>
+    <text x="${cx1+cw+18}" y="${yB-lapPx/2}" fill="#b3261e">lap splice above</text>
+    <text x="${cx1+cw+18}" y="${yB-lapPx/2+16}" fill="#b3261e">the floor (dashed)</text>
+    <text x="${cx1+cw+18}" y="${yB-6}" fill="#5d6670">first tie ≤ s/2 = ${f(s/2,0)}</text>
+    <text x="${cx1+cw+18}" y="${y0+14}" fill="#5d6670">last tie ≤ s/2 below</text>
+    <text x="${cx1+cw+18}" y="${y0+28}" fill="#5d6670">beam or slab steel</text>
+    <text x="10" y="${EH-8}" fill="#5d6670" font-size="11">All dimensions in mm</text></svg>`;
+  return {sec, elev, secW:VW, secH:VH, elevW:EW, elevH:EH};
+}
+
+// ---------- state, buttons, exports ----------
+let dl = null;
+const toast = (t, bad) => { const el=$("toast"); el.textContent = t; el.style.color = bad ? "var(--fail)" : "var(--accent)"; };
+function updateButtons(){
+  const ready = !!M && !stale;
+  $("copy").disabled = !ready; $("pdf").disabled = !(ready && dl); $("xls").disabled = !(ready && dl);
+}
+(async () => {
+  if (window.claude && window.claude.use){
+    try { dl = await window.claude.use("downloads"); } catch(e){ dl = null; }
+  } else {
+    // Running as a normal web page (for example GitHub Pages): use an ordinary browser download.
+    dl = { save: async ({filename, data}) => {
+      const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+      const a = document.createElement("a"); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return {status:"saved"};
+    }};
+  }
+  updateButtons();
+  if (!dl) toast("File export is not available in this view. Open the page in Claude to export.");
+})();
+
+function markStale(){ if (M && !stale){ stale = true; $("stale").hidden = false; document.querySelector("aside").classList.add("hints-stale"); updateButtons(); } }
+function fileBase(){ const m = (M.v.mark || "column").replace(/[^A-Za-z0-9_-]+/g,"-"); return `Column-design_${m}_${new Date().toISOString().slice(0,10)}`; }
+async function save(filename, data){
+  if (!dl) return toast("File export is not available in this view.", true);
+  try { await dl.save({filename, data}); toast("Saved " + filename); }
+  catch(e){ toast(e && e.code === "declined" ? "Export cancelled." : "Export failed: " + ((e && (e.message || e.code)) || "unknown error"), true); }
+}
+function svgToImg(svg, w, h){
+  return new Promise((resolve, reject) => {
+    const img = new Image(), t = setTimeout(() => reject(new Error("timeout")), 4000);
+    img.onload = () => { try { clearTimeout(t);
+        const k = 2, cv = document.createElement("canvas"); cv.width = w*k; cv.height = h*k;
+        const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height); cx.drawImage(img,0,0,cv.width,cv.height);
+        resolve(cv.toDataURL("image/jpeg", 0.92));
+      } catch(e){ reject(e); } };
+    img.onerror = () => { clearTimeout(t); reject(new Error("image load failed")); };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+  });
+}
+
+async function buildPdf(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  doc.addFileToVFS("DejaVu.ttf", window.BEAM_FONTS.reg); doc.addFont("DejaVu.ttf","DejaVu","normal");
+  doc.addFileToVFS("DejaVu-Bold.ttf", window.BEAM_FONTS.bold); doc.addFont("DejaVu-Bold.ttf","DejaVu","bold");
+  const L = 14, R = 196, W = R - L, INK = [29,35,41], ACC = [31,78,121], GREEN = [30,122,70], RED = [179,38,30], AMB = [122,90,0];
+  const {v, edName} = M;
+  const base = {theme:"grid", margin:{left:L,right:14,top:16,bottom:16},
+    styles:{font:"DejaVu", fontSize:8, cellPadding:1.5, textColor:INK, lineColor:[205,202,192], lineWidth:0.1, overflow:"linebreak"},
+    headStyles:{fillColor:INK, textColor:255, font:"DejaVu", fontStyle:"bold"}};
+  const grpStyle = {fillColor:[240,238,231], textColor:[93,102,112], fontStyle:"bold"};
+  const colourStatus = d => { if (d.section!=="body") return; const t = d.cell.raw;
+    if (t==="PASS"||t==="FAIL"||t==="NOTE"){ d.cell.styles.textColor = t==="PASS"?GREEN:t==="FAIL"?RED:AMB; d.cell.styles.fontStyle="bold"; } };
+  let y;
+  const heading = t => { if (y > 262){ doc.addPage(); y = 18; } doc.setFont("DejaVu","bold"); doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(t, L, y); y += 2.5; };
+  const after = gap => { y = doc.lastAutoTable.finalY + (gap||8); };
+  const caption = t => { doc.setFont("DejaVu","normal"); doc.setFontSize(7.5); doc.setTextColor(93,102,112); doc.text(t, L+W/2, y+2, {align:"center"}); y += 7; };
+
+  doc.setFillColor(...INK); doc.rect(0,0,210,24,"F");
+  doc.setTextColor(255); doc.setFont("DejaVu","bold"); doc.setFontSize(13);
+  doc.text("RC Rectangular Tied Column Design to " + edName, L, 11);
+  doc.setFont("DejaVu","normal"); doc.setFontSize(8.5);
+  doc.text(`Project: ${v.proj || "–"}   |   Column: ${v.mark || "–"}   |   Date: ${today()}`, L, 18);
+
+  const col = M.allOk ? GREEN : RED;
+  doc.setDrawColor(...col); doc.setFillColor(...(M.allOk ? [227,243,233] : [251,229,227])); doc.roundedRect(L,29,W,19,1.5,1.5,"FD");
+  doc.setTextColor(...col); doc.setFont("DejaVu","bold"); doc.setFontSize(15); doc.text(M.allOk?"PASS":"FAIL", L+4, 40.5);
+  doc.setTextColor(...INK); doc.setFont("DejaVu","normal"); doc.setFontSize(8.3);
+  const vt = `${headline()}. ${strip(strengthLine())} ` + (M.allOk ? "All checks satisfied." : `Not satisfied: ${M.failed.map(k=>strip(k.name)).join("; ")}.`);
+  doc.text(doc.splitTextToSize(vt, W-30).slice(0,4), L+26, 34);
+
+  y = 56; heading("1. Input parameters");
+  doc.autoTable({...base, startY:y, head:[["Parameter","Value","Unit"]], body:M.inRows.map(r=>r.map(strip)), columnStyles:{0:{cellWidth:66},2:{cellWidth:24}}});
+  after();
+
+  heading("2. Check summary");
+  const cb = []; let lg = "", i = 0;
+  M.checks.forEach(k => { if (k.group !== lg){ lg = k.group; cb.push([{content:k.group.toUpperCase(), colSpan:6, styles:grpStyle}]); }
+    cb.push([++i, strip(k.name), k.ref, strip(k.demand), strip(k.capacity), statusOf(k)]); });
+  doc.autoTable({...base, startY:y, head:[["#","Check","Clause","Required","Provided / actual","Status"]], body:cb,
+    columnStyles:{0:{cellWidth:7},5:{cellWidth:16,halign:"center"}}, didParseCell:colourStatus});
+  after();
+
+  heading("3. Interaction diagrams");
+  y += 2;
+  try {
+    const ps = plotSvgs(M), imgs = await Promise.all(ps.map(p => svgToImg(p.svg, p.w, p.h)));
+    const w = (W-6)/2, hh = w*340/380;
+    for (let k=0;k<imgs.length;k+=2){
+      if (y + hh > 272){ doc.addPage(); y = 18; }
+      const row = imgs.slice(k,k+2), x0 = row.length===2 ? L : L+(W-w)/2;
+      row.forEach((im,j) => doc.addImage(im, "JPEG", x0 + j*(w+6), y, w, hh));
+      y += hh + 3;
+    }
+    y -= hh + 3;
+    y += hh + 1; caption("Grey: nominal strength. Blue: design strength, cut off at φPn,max. Red: factored actions.");
+  } catch(e){ doc.setFont("DejaVu","normal"); doc.setFontSize(8); doc.setTextColor(93,102,112); doc.text("The diagrams could not be drawn in this browser. See the on-screen results.", L, y+3); y += 9; }
+  y += 3;
+
+  heading("4. Design procedure");
+  let lp = "";
+  M.steps.forEach((s,i) => {
+    if (s.part !== lp){ lp = s.part; if (y > 265){ doc.addPage(); y = 18; } doc.setFont("DejaVu","bold"); doc.setFontSize(9); doc.setTextColor(...ACC); doc.text(s.part, L, y+1); y += 4; }
+    const body = s.lines.map(l => [{content:strip(l), colSpan:2}]);
+    if (s.note) body.push([{content:strip(s.note), colSpan:2, styles:{textColor:[93,102,112]}}]);
+    doc.autoTable({...base, startY:y, rowPageBreak:"avoid",
+      head:[[`Step ${i+1}. ${strip(s.title)}`, {content:`${edName} ${s.ref}`, styles:{halign:"right"}}]],
+      headStyles:{fillColor:[230,238,246], textColor:ACC, font:"DejaVu", fontStyle:"bold"}, body});
+    after(3);
+  });
+  y += 5;
+
+  heading("5. Outcome and summary");
+  doc.autoTable({...base, startY:y, head:[["Item","Result","Remark","Status"]],
+    body:M.sumRows.map(r => r.g ? [{content:r.g.toUpperCase(), colSpan:4, styles:grpStyle}] : r.map(strip)),
+    foot:[M.outcomeRow.map(strip)], showFoot:"lastPage",
+    footStyles:{fillColor:[240,238,231], textColor:M.allOk?GREEN:RED, font:"DejaVu", fontStyle:"bold"},
+    columnStyles:{0:{cellWidth:42},1:{cellWidth:50},3:{cellWidth:16,halign:"center"}}, didParseCell:colourStatus});
+  after();
+  if (M.actions.length){
+    heading("Items to resolve");
+    doc.autoTable({...base, startY:y, head:[["Check","Clause","Required","Actual","Action"]], body:M.actions.map(r=>r.map(strip))});
+    after();
+  }
+  doc.setFont("DejaVu","normal"); doc.setFontSize(8); doc.setTextColor(93,102,112);
+  const sn = doc.splitTextToSize(strip(SCOPE_NOTE), W); if (y + sn.length*4 > 275){ doc.addPage(); y = 18; }
+  doc.text(sn, L, y); y += sn.length*4 + 6;
+
+  doc.addPage(); y = 18;
+  heading("6. Reinforcement detail");
+  y += 3;
+  const det = detailSvgs(M);
+  try {
+    const [p1, p2] = await Promise.all([svgToImg(det.sec, det.secW, det.secH), svgToImg(det.elev, det.elevW, det.elevH)]);
+    const w1 = Math.min(W, 150), h1 = w1*det.secH/det.secW;
+    doc.addImage(p1, "JPEG", L+(W-w1)/2, y, w1, h1); y += h1 + 1; caption("Cross-section (to scale)");
+    const h2 = Math.min(110, 270 - y - 40), w2 = h2*det.elevW/det.elevH;
+    doc.addImage(p2, "JPEG", L+(W-w2)/2, y, w2, h2); y += h2 + 1; caption("Elevation (height to scale, width exaggerated)");
+  } catch(e){ doc.setFont("DejaVu","normal"); doc.setFontSize(8); doc.setTextColor(93,102,112); doc.text("The drawings could not be rendered in this browser. See the bar schedule below.", L, y+3); y += 9; }
+
+  heading("Bar schedule");
+  doc.autoTable({...base, startY:y, head:[["Mark","Description","Location","No.","Dia (mm)","Spacing (mm)","Remark"]], body:M.schedule.map(r=>r.map(c=>strip(String(c))))});
+  after(8);
+
+  heading("7. References");
+  doc.autoTable({...base, theme:"plain", startY:y, body:REFS.map((r,i)=>[`${i+1}.`, strip(r)]), columnStyles:{0:{cellWidth:8}}, styles:{...base.styles, lineWidth:0}});
+  after(10);
+
+  if (y > 275){ doc.addPage(); y = 20; }
+  doc.setDrawColor(205,202,192); doc.setLineWidth(0.2); doc.line(L, y, R, y);
+  doc.setFont("DejaVu","normal"); doc.setFontSize(8.5); doc.setTextColor(93,102,112);
+  doc.text("Developed by " + AUTHOR, L + W/2, y + 6, {align:"center"});
+
+  const pages = doc.getNumberOfPages();
+  for (let i=1;i<=pages;i++){
+    doc.setPage(i); doc.setFont("DejaVu","normal"); doc.setFontSize(7.5); doc.setTextColor(93,102,112);
+    doc.text(`RC column design, ${edName}${v.mark ? "   |   Column " + v.mark : ""}`, L, 290);
+    doc.text(`Page ${i} of ${pages}`, R, 290, {align:"right"});
+  }
+  return doc.output("arraybuffer");
+}
+
+function buildXlsx(){
+  const X = window.XLSX, {v, edName} = M, wb = X.utils.book_new();
+  const add = (name, aoa, widths) => { const ws = X.utils.aoa_to_sheet(aoa); ws["!cols"] = widths.map(w=>({wch:w})); X.utils.book_append_sheet(wb, ws, name); };
+  add("Summary", [
+    ["RC rectangular tied column design"],
+    ["Design code", edName], ["Project", v.proj || ""], ["Column mark", v.mark || ""], ["Date", today()], [],
+    ["Item","Result","Remark","Status"], ...M.sumRows.map(r => r.g ? [r.g.toUpperCase()] : r.map(strip)), M.outcomeRow.map(strip), [],
+    ...(M.actions.length ? [["Items to resolve"],["Check","Clause","Required","Actual","Action"], ...M.actions.map(r=>r.map(strip)), []] : []),
+    [strip(SCOPE_NOTE)], [], ["Developed by " + AUTHOR]
+  ], [36,40,70,10,50]);
+  const lab = {lu:["Unsupported length, lu","m"],kx:["Effective length factor, kx",""],ky:["Effective length factor, ky",""],bdns:["Sustained load ratio, βdns",""],
+    Pu:["Factored axial load, Pu","kN"],M2x:["Larger end moment about x, M2x","kN·m"],M1x:["Smaller end moment about x, M1x","kN·m"],M2y:["Larger end moment about y, M2y","kN·m"],M1y:["Smaller end moment about y, M1y","kN·m"],
+    Vux:["Factored shear along x, Vux","kN"],Vuy:["Factored shear along y, Vuy","kN"],fc:["Concrete strength, f'c","MPa"],fy:["Longitudinal bar yield, fy","MPa"],fyt:["Tie yield, fyt","MPa"],Es:["Steel modulus, Es","MPa"],ecu:["Ultimate concrete strain, εcu",""],
+    b:["Width, b","mm"],h:["Depth, h","mm"],nx:["Bars on each b face","nos"],ny:["Bars on each h face","nos"],db:["Bar diameter","mm"],dtie:["Tie diameter","mm"],s:["Tie spacing","mm"],legsY:["Tie legs parallel to h","nos"],legsX:["Tie legs parallel to b","nos"],cov:["Clear cover to ties","mm"],agg:["Max aggregate size","mm"]};
+  add("Inputs", [["Parameter","Value","Unit"], ["Code edition", edName, ""], ["Frame type", FRAME_NAME[v.frame], ""], ["Curvature about x", CURV_NAME[v.curvx], ""], ["Curvature about y", CURV_NAME[v.curvy], ""], ["Exposure", EXP_NAME[v.exposure], ""],
+    ...Object.keys(lab).map(k=>[lab[k][0], v[k], lab[k][1]]), ["Total longitudinal bars", M.nBars, "nos"], ["Ast", +M.Ast.toFixed(0), "mm²"]], [38,30,10]);
+  const proc = [["Step","Title","Clause","Calculation"]]; let lp = "";
+  M.steps.forEach((s,i) => { if (s.part !== lp){ lp = s.part; proc.push(["", s.part.toUpperCase()]); }
+    s.lines.forEach((l,j) => proc.push([j?"":i+1, j?"":strip(s.title), j?"":`${edName} ${s.ref}`, strip(l)])); if (s.note) proc.push(["","","", "Note: " + strip(s.note)]); });
+  add("Procedure", proc, [6,40,34,140]);
+  const ch = [["#","Group","Check","Clause","Required","Provided / actual","Status"]];
+  M.checks.forEach((k,i)=>ch.push([i+1, k.group, strip(k.name), k.ref, strip(k.demand), strip(k.capacity), statusOf(k)]));
+  add("Checks", ch, [5,26,46,24,28,34,10]);
+  const P = M.plots, n = Math.max(P.x.nom.length,P.x.des.length,P.y.nom.length,P.y.des.length,P.contour.length);
+  const ia = [["About x: Mn (kN·m)","Pn (kN)","φMn (kN·m)","φPn (kN)","","About y: Mn (kN·m)","Pn (kN)","φMn (kN·m)","φPn (kN)","",`Contour at Pu: φMny (kN·m)`,"φMnx (kN·m)"]];
+  const c2 = (a,i) => a[i] ? [+a[i][0].toFixed(1), +a[i][1].toFixed(1)] : ["",""];
+  for (let i=0;i<n;i++) ia.push([...c2(P.x.nom,i), ...c2(P.x.des,i), "", ...c2(P.y.nom,i), ...c2(P.y.des,i), "", ...c2(P.contour,i)]);
+  add("Interaction", ia, [18,10,12,10,3,18,10,12,10,3,26,14]);
+  add("Bar schedule", [["Mark","Description","Location","No.","Dia (mm)","Spacing (mm)","Remark"], ...M.schedule.map(r=>r.map(c=>strip(String(c))))], [7,28,34,12,10,14,34]);
+  add("References", [["#","Reference"], ...REFS.map((r,i)=>[i+1, strip(r)]), [], ["Developed by " + AUTHOR]], [6,170]);
+  return X.write(wb, {type:"array", bookType:"xlsx"});
+}
+
+function reportText(){
+  if (!M) return "";
+  const {v, edName} = M;
+  return [
+    "RC RECTANGULAR TIED COLUMN DESIGN - " + edName,
+    `Project: ${v.proj||"-"}   Column: ${v.mark||"-"}   Date: ${today()}`, "",
+    "INPUTS", ...M.inRows.map(r=>`  ${strip(r[0])}: ${strip(r[1])} ${r[2]}`), "",
+    "PROCEDURE", ...M.steps.map((s,i)=>`  Step ${i+1}. ${strip(s.title)} [${edName} ${s.ref}]\n` + s.lines.map(l=>"    "+strip(l)).join("\n")), "",
+    "CHECKS", ...M.checks.map((k,i)=>`  ${i+1}. [${k.group}] ${strip(k.name)} [${k.ref}]  req: ${strip(k.demand)}  act: ${strip(k.capacity)}  -> ${statusOf(k)}`), "",
+    "OUTCOME AND SUMMARY", ...[...M.sumRows.filter(r=>!r.g), M.outcomeRow].map(r=>`  ${strip(r[0])}: ${strip(r[1])}${r[2]?"  ("+strip(r[2])+")":""}${r[3]?"  -> "+r[3]:""}`),
+    ...(M.actions.length ? ["", "ITEMS TO RESOLVE", ...M.actions.map(r=>`  ${strip(r[0])} [${r[1]}]: ${strip(r[4])}`)] : []), "",
+    "BAR SCHEDULE", ...M.schedule.map(r=>`  (${r[0]}) ${r[1]}, ${r[2]}: ${r[3]} x Ø${r[4]} ${r[5]!=="–"?"@ "+r[5]:""}  ${strip(r[6])}`), "",
+    strip(SCOPE_NOTE), "", "Developed by " + AUTHOR
+  ].join("\n");
+}
+
+// ---------- wiring ----------
+ids.forEach(k => $(k).value = DEFAULTS[k]);
+$("refs").innerHTML = REFS.map(r=>`<li>${r}</li>`).join("");
+$("form").addEventListener("submit", e => { e.preventDefault(); calculate(); });
+$("form").addEventListener("input", markStale);
+$("form").addEventListener("change", markStale);
+$("pdf").addEventListener("click", async () => {
+  if (!M || stale) return toast("Click Calculate first.", true);
+  toast("Building PDF…");
+  try { const data = await buildPdf(); await save(fileBase()+".pdf", data); } catch(e){ toast("Could not build the PDF: " + e.message, true); }
+});
+$("xls").addEventListener("click", () => {
+  if (!M || stale) return toast("Click Calculate first.", true);
+  try { save(fileBase()+".xlsx", buildXlsx()); } catch(e){ toast("Could not build the Excel file: " + e.message, true); }
+});
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(reportText()); toast("Report text copied."); }
+  catch(e){ toast("Copy was blocked by the browser.", true); }
+});
+</script>
+</body>
+</html>
