@@ -916,7 +916,24 @@ function svgToImg(svg, w, h){
   });
 }
 
+const LIB_HELP = "Reload the page. If you opened index.html from a download, keep the lib folder next to it.";
+function loadScript(src){
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error(src + " could not be loaded. " + LIB_HELP)); document.head.appendChild(s); });
+}
+async function ensureLibs(kind){
+  const need = kind === "pdf"
+    ? [[() => window.jspdf && window.jspdf.jsPDF, "lib/jspdf.umd.min.js"], [() => window.jspdf.jsPDF.API.autoTable, "lib/jspdf.plugin.autotable.min.js"], [() => window.BEAM_FONTS, "lib/fonts.js"]]
+    : [[() => window.XLSX, "lib/xlsx.mini.min.js"]];
+  for (const [ok, src] of need){
+    if (ok()) continue;
+    await loadScript(src);
+    if (!ok()) throw new Error(src + " did not load. " + LIB_HELP);
+  }
+}
+
 async function buildPdf(){
+  await ensureLibs("pdf");
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"mm", format:"a4"});
   doc.addFileToVFS("DejaVu.ttf", window.BEAM_FONTS.reg); doc.addFont("DejaVu.ttf","DejaVu","normal");
@@ -1098,9 +1115,9 @@ $("pdf").addEventListener("click", async () => {
   toast("Building PDF…");
   try { const data = await buildPdf(); await save(fileBase()+".pdf", data); } catch(e){ toast("Could not build the PDF: " + e.message, true); }
 });
-$("xls").addEventListener("click", () => {
+$("xls").addEventListener("click", async () => {
   if (!M || stale) return toast("Click Calculate first.", true);
-  try { save(fileBase()+".xlsx", buildXlsx()); } catch(e){ toast("Could not build the Excel file: " + e.message, true); }
+  try { await ensureLibs("xlsx"); await save(fileBase()+".xlsx", buildXlsx()); } catch(e){ toast("Could not build the Excel file: " + e.message, true); }
 });
 $("copy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(reportText()); toast("Report text copied."); }
